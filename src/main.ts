@@ -172,46 +172,97 @@ export default class MoveCompletedPlugin extends Plugin {
       docLines.push(doc.line(i).text);
     }
 
-    const settings = {
-      moveWithSubtasks: this.settings.moveWithSubtasks,
-      placement: 'bottom' as const,
-      excludedChars: this.settings.excludedChars,
-    };
-
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (let i = 0; i < docLines.length; i++) {
-        const parsed = parseCheckbox(docLines[i]);
-        if (!parsed) continue;
-        if (!isCompleted(parsed.status, this.settings.excludedChars)) continue;
-
-        const result = computeReorder(docLines, i, settings);
-        if (!result) continue;
-
-        const removed = docLines.splice(
-          result.removeFrom,
-          result.removeTo - result.removeFrom + 1
-        );
-        let adjustedInsertAt: number;
-        if (result.removeFrom <= result.insertAt) {
-          adjustedInsertAt = result.insertAt - removed.length;
-        } else {
-          adjustedInsertAt = result.insertAt;
-        }
-        docLines.splice(adjustedInsertAt + 1, 0, ...removed);
-        changed = true;
-        break;
-      }
-    }
-
-    const newText = docLines.join("\n");
+    const result = this.partitionAllGroups(docLines);
+    const newText = result.join("\n");
     if (newText === doc.toString()) return;
 
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
       annotations: [reorderAnnotation.of(true)],
     });
+  }
+
+  private partitionAllGroups(docLines: string[]): string[] {
+    const output: string[] = [];
+    let i = 0;
+
+    while (i < docLines.length) {
+      const parsed = parseCheckbox(docLines[i]);
+      if (!parsed) {
+        output.push(docLines[i]);
+        i++;
+        continue;
+      }
+
+      const groupIndent = parsed.indent.length;
+      const incomplete: string[][] = [];
+      const completed: string[][] = [];
+
+      while (i < docLines.length) {
+        const p = parseCheckbox(docLines[i]);
+
+        if (!p) {
+          const lineIndent = (docLines[i].match(/^(\s*)/)?.[1] ?? "").length;
+          if (lineIndent > groupIndent) {
+            // Continuation of previous block (subtask content)
+            const lastBlock = completed.length > 0 && completed[completed.length - 1].length > 0
+              ? completed[completed.length - 1]
+              : incomplete.length > 0
+                ? incomplete[incomplete.length - 1]
+                : null;
+            if (lastBlock) lastBlock.push(docLines[i]);
+            else output.push(docLines[i]);
+            i++;
+            continue;
+          }
+          break;
+        }
+
+        if (p.indent.length > groupIndent) {
+          // Subtask: attach to the last block we're building
+          const lastBlock = completed.length > 0 && completed[completed.length - 1].length > 0
+            ? completed[completed.length - 1]
+            : incomplete.length > 0
+              ? incomplete[incomplete.length - 1]
+              : null;
+          if (lastBlock) lastBlock.push(docLines[i]);
+          else { incomplete.push([docLines[i]]); }
+          i++;
+          continue;
+        }
+
+        if (p.indent.length < groupIndent) {
+          break;
+        }
+
+        // Same indent level: start a new block
+        const block = [docLines[i]];
+        const isComp = isCompleted(p.status, this.settings.excludedChars);
+        i++;
+
+        // Collect subtasks belonging to this item
+        if (this.settings.moveWithSubtasks) {
+          while (i < docLines.length) {
+            const subIndent = (docLines[i].match(/^(\s*)/)?.[1] ?? "").length;
+            if (subIndent <= groupIndent) break;
+            if (docLines[i].trim() === "") break;
+            block.push(docLines[i]);
+            i++;
+          }
+        }
+
+        if (isComp) {
+          completed.push(block);
+        } else {
+          incomplete.push(block);
+        }
+      }
+
+      for (const block of incomplete) output.push(...block);
+      for (const block of completed) output.push(...block);
+    }
+
+    return output;
   }
 
   private collectToEnd(view: EditorView) {
