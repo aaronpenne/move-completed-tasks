@@ -31,7 +31,7 @@ var import_obsidian = require("obsidian");
 var DEFAULT_SETTINGS = {
   enabled: true,
   moveWithSubtasks: true,
-  placement: "bottom",
+  placement: "above-completed",
   excludedChars: '?!*"lbiSIpcfkwud',
   highlightMove: true
 };

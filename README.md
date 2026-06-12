@@ -1,6 +1,6 @@
-![GitHub release](https://img.shields.io/github/v/release/aaronpenne/obsidian-move-completed?style=flat-square)
-![Obsidian minimum version](https://img.shields.io/badge/obsidian-1.5.0+-7c3aed?style=flat-square)
-![License](https://img.shields.io/github/license/aaronpenne/obsidian-move-completed?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.1.4-blue?style=flat-square)
+![Obsidian](https://img.shields.io/badge/obsidian-1.5.0+-7c3aed?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 # Move Completed Tasks
 
@@ -27,7 +27,7 @@ An [Obsidian](https://obsidian.md) plugin that automatically moves completed tas
 |--------|---------|-------------|
 | Enable | On | Master toggle |
 | Move with subtasks | On | Nested items move as a block |
-| Placement | Bottom | Bottom of group, or above existing completed items |
+| Placement | Above completed | Above existing completed items, or bottom of group |
 | Excluded characters | `?!*"lbiSIpcfkwud` | Checkbox states that don't trigger a move |
 | Highlight moved task | On | Brief visual indicator at the new position |
 

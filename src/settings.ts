@@ -12,7 +12,7 @@ export interface MoveCompletedSettings {
 export const DEFAULT_SETTINGS: MoveCompletedSettings = {
   enabled: true,
   moveWithSubtasks: true,
-  placement: 'bottom',
+  placement: 'above-completed',
   excludedChars: '?!*"lbiSIpcfkwud',
   highlightMove: true,
 };
