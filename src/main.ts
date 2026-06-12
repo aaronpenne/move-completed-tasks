@@ -1,6 +1,6 @@
 import { Plugin } from "obsidian";
-import { EditorView, ViewUpdate } from "@codemirror/view";
-import { Annotation, EditorSelection, Text } from "@codemirror/state";
+import { Decoration, DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
+import { Annotation, EditorSelection, StateEffect, StateField, Text } from "@codemirror/state";
 import {
   MoveCompletedSettings,
   DEFAULT_SETTINGS,
@@ -9,6 +9,28 @@ import {
 import { computeReorder, parseCheckbox, isCompleted } from "./reorder";
 
 const reorderAnnotation = Annotation.define<boolean>();
+const highlightEffect = StateEffect.define<number>();
+const clearHighlightEffect = StateEffect.define<null>();
+
+const highlightDeco = Decoration.line({ class: "move-completed-highlight" });
+
+const highlightField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(decos, tr) {
+    for (const e of tr.effects) {
+      if (e.is(clearHighlightEffect)) {
+        return Decoration.none;
+      }
+      if (e.is(highlightEffect)) {
+        return Decoration.set([highlightDeco.range(e.value)]);
+      }
+    }
+    return decos;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 const CHECKBOX_RE = /^(\s*)([-*+])\s+\[(.)\]\s/;
 
@@ -18,7 +40,7 @@ export default class MoveCompletedPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new MoveCompletedSettingTab(this.app, this));
-    this.registerEditorExtension(this.createEditorExtension());
+    this.registerEditorExtension([highlightField, this.createEditorExtension()]);
   }
 
   async loadSettings() {
@@ -111,6 +133,11 @@ export default class MoveCompletedPlugin extends Plugin {
       changes: { from: 0, to: doc.length, insert: newText },
       selection: EditorSelection.cursor(cursorLine.from),
       annotations: [reorderAnnotation.of(true)],
+      effects: [highlightEffect.of(cursorLine.from)],
     });
+
+    setTimeout(() => {
+      view.dispatch({ effects: [clearHighlightEffect.of(null)] });
+    }, 600);
   }
 }

@@ -251,6 +251,26 @@ function computeReorder(docLines, completedLineIndex, settings) {
 
 // src/main.ts
 var reorderAnnotation = import_state.Annotation.define();
+var highlightEffect = import_state.StateEffect.define();
+var clearHighlightEffect = import_state.StateEffect.define();
+var highlightDeco = import_view.Decoration.line({ class: "move-completed-highlight" });
+var highlightField = import_state.StateField.define({
+  create() {
+    return import_view.Decoration.none;
+  },
+  update(decos, tr) {
+    for (const e of tr.effects) {
+      if (e.is(clearHighlightEffect)) {
+        return import_view.Decoration.none;
+      }
+      if (e.is(highlightEffect)) {
+        return import_view.Decoration.set([highlightDeco.range(e.value)]);
+      }
+    }
+    return decos;
+  },
+  provide: (f) => import_view.EditorView.decorations.from(f)
+});
 var CHECKBOX_RE2 = /^(\s*)([-*+])\s+\[(.)\]\s/;
 var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
   constructor() {
@@ -260,7 +280,7 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new MoveCompletedSettingTab(this.app, this));
-    this.registerEditorExtension(this.createEditorExtension());
+    this.registerEditorExtension([highlightField, this.createEditorExtension()]);
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -337,7 +357,11 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
       selection: import_state.EditorSelection.cursor(cursorLine.from),
-      annotations: [reorderAnnotation.of(true)]
+      annotations: [reorderAnnotation.of(true)],
+      effects: [highlightEffect.of(cursorLine.from)]
     });
+    setTimeout(() => {
+      view.dispatch({ effects: [clearHighlightEffect.of(null)] });
+    }, 600);
   }
 };

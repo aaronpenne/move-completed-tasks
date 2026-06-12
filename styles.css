@@ -1,0 +1,8 @@
+@keyframes move-completed-flash {
+  0% { background-color: var(--text-highlight-bg); }
+  100% { background-color: transparent; }
+}
+
+.move-completed-highlight {
+  animation: move-completed-flash 600ms ease-out;
+}
