@@ -162,3 +162,123 @@ describe("computeReorder - bottom placement", () => {
     });
   });
 });
+
+describe("computeReorder - subtasks", () => {
+  it("moves parent with its subtasks as a block", () => {
+    const lines = [
+      "- [x] parent done",
+      "  - [ ] child one",
+      "  - [ ] child two",
+      "- [ ] sibling task",
+    ];
+    const result = computeReorder(lines, 0, DEFAULT_TEST_SETTINGS);
+    expect(result).toEqual({
+      removeFrom: 0,
+      removeTo: 2,
+      insertAt: 3,
+      lines: ["- [x] parent done", "  - [ ] child one", "  - [ ] child two"],
+    });
+  });
+
+  it("moves only the line when moveWithSubtasks is false", () => {
+    const lines = [
+      "- [x] parent done",
+      "  - [ ] child one",
+      "  - [ ] child two",
+      "- [ ] sibling task",
+    ];
+    const settings: ReorderSettings = {
+      ...DEFAULT_TEST_SETTINGS,
+      moveWithSubtasks: false,
+    };
+    const result = computeReorder(lines, 0, settings);
+    expect(result).toEqual({
+      removeFrom: 0,
+      removeTo: 0,
+      insertAt: 3,
+      lines: ["- [x] parent done"],
+    });
+  });
+
+  it("subtask completion stays scoped within parent", () => {
+    const lines = [
+      "- [ ] parent task",
+      "  - [x] subtask done",
+      "  - [ ] subtask two",
+      "  - [ ] subtask three",
+      "- [ ] another parent",
+    ];
+    const result = computeReorder(lines, 1, DEFAULT_TEST_SETTINGS);
+    expect(result).toEqual({
+      removeFrom: 1,
+      removeTo: 1,
+      insertAt: 3,
+      lines: ["  - [x] subtask done"],
+    });
+  });
+
+  it("subtask never escapes its parent scope", () => {
+    const lines = [
+      "- [ ] parent task",
+      "  - [x] subtask done",
+      "  - [ ] subtask two",
+      "- [ ] another parent",
+    ];
+    const result = computeReorder(lines, 1, DEFAULT_TEST_SETTINGS);
+    expect(result).toEqual({
+      removeFrom: 1,
+      removeTo: 1,
+      insertAt: 2,
+      lines: ["  - [x] subtask done"],
+    });
+  });
+
+  it("handles deeply nested subtasks", () => {
+    const lines = [
+      "- [ ] parent",
+      "  - [x] sub done",
+      "    - [ ] sub-sub one",
+      "  - [ ] sub two",
+    ];
+    const result = computeReorder(lines, 1, DEFAULT_TEST_SETTINGS);
+    expect(result).toEqual({
+      removeFrom: 1,
+      removeTo: 2,
+      insertAt: 3,
+      lines: ["  - [x] sub done", "    - [ ] sub-sub one"],
+    });
+  });
+});
+
+describe("computeReorder - mixed indent levels", () => {
+  it("does not mix indent scopes", () => {
+    const lines = [
+      "- [ ] top level one",
+      "  - [x] nested done",
+      "  - [ ] nested two",
+      "- [ ] top level two",
+    ];
+    const result = computeReorder(lines, 1, DEFAULT_TEST_SETTINGS);
+    expect(result).toEqual({
+      removeFrom: 1,
+      removeTo: 1,
+      insertAt: 2,
+      lines: ["  - [x] nested done"],
+    });
+  });
+
+  it("tabs work as indent", () => {
+    const lines = [
+      "- [x] done task",
+      "\t- [ ] child",
+      "- [ ] sibling",
+    ];
+    const result = computeReorder(lines, 0, DEFAULT_TEST_SETTINGS);
+    expect(result).toEqual({
+      removeFrom: 0,
+      removeTo: 1,
+      insertAt: 2,
+      lines: ["- [x] done task", "\t- [ ] child"],
+    });
+  });
+});
