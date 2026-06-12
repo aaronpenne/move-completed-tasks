@@ -288,6 +288,22 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     await this.loadSettings();
     this.addSettingTab(new MoveCompletedSettingTab(this.app, this));
     this.registerEditorExtension([highlightField, this.createEditorExtension()]);
+    this.addCommand({
+      id: "move-all-completed-down",
+      name: "Move all completed tasks down (scoped)",
+      editorCallback: (_editor, view) => {
+        const cmView = view.editor.cm;
+        this.bulkMoveScoped(cmView);
+      }
+    });
+    this.addCommand({
+      id: "collect-completed-to-end",
+      name: "Collect all completed tasks to end of document",
+      editorCallback: (_editor, view) => {
+        const cmView = view.editor.cm;
+        this.collectToEnd(cmView);
+      }
+    });
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -373,5 +389,97 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
         view.dispatch({ effects: [clearHighlightEffect.of(null)] });
       }, 2e3);
     }
+  }
+  bulkMoveScoped(view) {
+    const doc = view.state.doc;
+    let docLines = [];
+    for (let i = 1; i <= doc.lines; i++) {
+      docLines.push(doc.line(i).text);
+    }
+    const settings = {
+      moveWithSubtasks: this.settings.moveWithSubtasks,
+      placement: this.settings.placement,
+      excludedChars: this.settings.excludedChars
+    };
+    let changed = true;
+    let passes = 0;
+    while (changed && passes < 200) {
+      changed = false;
+      passes++;
+      for (let i = docLines.length - 1; i >= 0; i--) {
+        const parsed = parseCheckbox(docLines[i]);
+        if (!parsed)
+          continue;
+        if (!isCompleted(parsed.status, this.settings.excludedChars))
+          continue;
+        const result = computeReorder(docLines, i, settings);
+        if (!result)
+          continue;
+        const removed = docLines.splice(
+          result.removeFrom,
+          result.removeTo - result.removeFrom + 1
+        );
+        let adjustedInsertAt;
+        if (result.removeFrom <= result.insertAt) {
+          adjustedInsertAt = result.insertAt - removed.length;
+        } else {
+          adjustedInsertAt = result.insertAt;
+        }
+        docLines.splice(adjustedInsertAt + 1, 0, ...removed);
+        changed = true;
+        break;
+      }
+    }
+    const newText = docLines.join("\n");
+    if (newText === doc.toString())
+      return;
+    view.dispatch({
+      changes: { from: 0, to: doc.length, insert: newText },
+      annotations: [reorderAnnotation.of(true)]
+    });
+  }
+  collectToEnd(view) {
+    var _a, _b;
+    const doc = view.state.doc;
+    const docLines = [];
+    for (let i = 1; i <= doc.lines; i++) {
+      docLines.push(doc.line(i).text);
+    }
+    const collected = [];
+    const remaining = [];
+    for (let i = 0; i < docLines.length; i++) {
+      const parsed = parseCheckbox(docLines[i]);
+      if (parsed && isCompleted(parsed.status, this.settings.excludedChars)) {
+        collected.push(docLines[i]);
+        if (this.settings.moveWithSubtasks) {
+          const indent = parsed.indent;
+          const baseLevel = indent.length;
+          let j = i + 1;
+          while (j < docLines.length) {
+            const lineIndent = (_b = (_a = docLines[j].match(/^(\s*)/)) == null ? void 0 : _a[1]) != null ? _b : "";
+            if (lineIndent.length <= baseLevel && docLines[j].trim() !== "")
+              break;
+            if (docLines[j].trim() === "")
+              break;
+            collected.push(docLines[j]);
+            j++;
+          }
+          i = j - 1;
+        }
+      } else {
+        remaining.push(docLines[i]);
+      }
+    }
+    if (collected.length === 0)
+      return;
+    while (remaining.length > 0 && remaining[remaining.length - 1].trim() === "") {
+      remaining.pop();
+    }
+    const finalLines = [...remaining, "", "## Completed", "", ...collected];
+    const newText = finalLines.join("\n");
+    view.dispatch({
+      changes: { from: 0, to: doc.length, insert: newText },
+      annotations: [reorderAnnotation.of(true)]
+    });
   }
 };

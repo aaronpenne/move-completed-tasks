@@ -1,7 +1,7 @@
 {
   "id": "obsidian-move-completed",
   "name": "Move completed tasks",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "minAppVersion": "1.5.0",
   "description": "Instantly move completed tasks to the bottom of their checkbox group",
   "author": "",
