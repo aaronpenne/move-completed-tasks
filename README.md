@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-0.2.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.2.1-blue?style=flat-square)
 ![Obsidian](https://img.shields.io/badge/obsidian-1.5.0+-7c3aed?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
@@ -33,14 +33,14 @@ An [Obsidian](https://obsidian.md) plugin that automatically moves completed tas
 
 ## Commands
 
-Available from the command palette (Ctrl/Cmd+P):
+Available from the command palette (Ctrl/Cmd+P). Useful for cleaning up a page with scattered completed tasks.
 
-| Command | What it does |
-|---------|--------------|
-| Move all completed tasks down (scoped) | Moves every completed task to the bottom of its group, as if you checked them off one by one. Preserves relative order. |
-| Collect all completed tasks to end of document | Gathers all completed tasks and places them under a `## Completed` heading at the end of the note. |
+| Command | What it does | Suggested hotkey |
+|---------|--------------|------------------|
+| Move all completed tasks down (scoped) | Moves every completed task to the bottom of its group, including nested subtasks. Preserves relative order. | `Ctrl+Shift+M` |
+| Collect all completed tasks to end of document | Gathers all completed tasks and places them under a `## Completed` heading at the end of the note. | `Ctrl+Shift+Alt+M` |
 
-Both commands can be bound to hotkeys in Settings > Hotkeys.
+No hotkeys are registered by default. Bind them in Settings > Hotkeys by searching "Move completed".
 
 ## How groups work
 
