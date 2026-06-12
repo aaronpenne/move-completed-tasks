@@ -8,6 +8,8 @@ An [Obsidian](https://obsidian.md) plugin that keeps your task lists tidy. When 
 
 For pages that already have scattered completed tasks, two commands let you clean everything up at once.
 
+![Before and after](imgs/before_and_after.png)
+
 ## Install
 
 **Manual (recommended):** Download `move-completed-tasks.zip` from the [latest release](https://github.com/aaronpenne/move-completed-tasks/releases/latest), unzip it into your vault's plugin folder (`<vault>/.obsidian/plugins/`), and enable in Settings > Community plugins.
@@ -37,6 +39,8 @@ Open the command palette (Ctrl/Cmd+P) and search "Move completed":
 Both commands can be bound to hotkeys in Settings > Hotkeys.
 
 ## Settings
+
+![Settings](imgs/settings.png)
 
 | Option | Default | Description |
 |--------|---------|-------------|
