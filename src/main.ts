@@ -204,12 +204,9 @@ export default class MoveCompletedPlugin extends Plugin {
         if (!p) {
           const lineIndent = (docLines[i].match(/^(\s*)/)?.[1] ?? "").length;
           if (lineIndent > groupIndent) {
-            // Continuation of previous block (subtask content)
-            const lastBlock = completed.length > 0 && completed[completed.length - 1].length > 0
-              ? completed[completed.length - 1]
-              : incomplete.length > 0
-                ? incomplete[incomplete.length - 1]
-                : null;
+            const lastBlock =
+              (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) ||
+              (completed.length > 0 ? completed[completed.length - 1] : null);
             if (lastBlock) lastBlock.push(docLines[i]);
             else output.push(docLines[i]);
             i++;
@@ -218,37 +215,32 @@ export default class MoveCompletedPlugin extends Plugin {
           break;
         }
 
-        if (p.indent.length > groupIndent) {
-          // Subtask: attach to the last block we're building
-          const lastBlock = completed.length > 0 && completed[completed.length - 1].length > 0
-            ? completed[completed.length - 1]
-            : incomplete.length > 0
-              ? incomplete[incomplete.length - 1]
-              : null;
-          if (lastBlock) lastBlock.push(docLines[i]);
-          else { incomplete.push([docLines[i]]); }
-          i++;
-          continue;
-        }
-
         if (p.indent.length < groupIndent) {
           break;
         }
 
-        // Same indent level: start a new block
+        if (p.indent.length > groupIndent) {
+          const lastBlock =
+            (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) ||
+            (completed.length > 0 ? completed[completed.length - 1] : null);
+          if (lastBlock) lastBlock.push(docLines[i]);
+          else incomplete.push([docLines[i]]);
+          i++;
+          continue;
+        }
+
+        // Same indent level: this is a sibling in the group
         const block = [docLines[i]];
         const isComp = isCompleted(p.status, this.settings.excludedChars);
         i++;
 
-        // Collect subtasks belonging to this item
-        if (this.settings.moveWithSubtasks) {
-          while (i < docLines.length) {
-            const subIndent = (docLines[i].match(/^(\s*)/)?.[1] ?? "").length;
-            if (subIndent <= groupIndent) break;
-            if (docLines[i].trim() === "") break;
-            block.push(docLines[i]);
-            i++;
-          }
+        // Collect all deeper lines as subtasks of this item
+        while (i < docLines.length) {
+          if (docLines[i].trim() === "") break;
+          const subIndent = (docLines[i].match(/^(\s*)/)?.[1] ?? "").length;
+          if (subIndent <= groupIndent) break;
+          block.push(docLines[i]);
+          i++;
         }
 
         if (isComp) {
@@ -258,8 +250,20 @@ export default class MoveCompletedPlugin extends Plugin {
         }
       }
 
-      for (const block of incomplete) output.push(...block);
-      for (const block of completed) output.push(...block);
+      // For each block with subtasks, recursively partition the subtask lines
+      const emit = (blocks: string[][]) => {
+        for (const block of blocks) {
+          output.push(block[0]);
+          if (block.length > 1) {
+            const subtaskLines = block.slice(1);
+            const partitioned = this.partitionAllGroups(subtaskLines);
+            output.push(...partitioned);
+          }
+        }
+      };
+
+      emit(incomplete);
+      emit(completed);
     }
 
     return output;

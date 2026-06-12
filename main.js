@@ -426,7 +426,7 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
         if (!p) {
           const lineIndent = ((_b = (_a = docLines[i].match(/^(\s*)/)) == null ? void 0 : _a[1]) != null ? _b : "").length;
           if (lineIndent > groupIndent) {
-            const lastBlock = completed.length > 0 && completed[completed.length - 1].length > 0 ? completed[completed.length - 1] : incomplete.length > 0 ? incomplete[incomplete.length - 1] : null;
+            const lastBlock = (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) || (completed.length > 0 ? completed[completed.length - 1] : null);
             if (lastBlock)
               lastBlock.push(docLines[i]);
             else
@@ -436,32 +436,29 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
           }
           break;
         }
-        if (p.indent.length > groupIndent) {
-          const lastBlock = completed.length > 0 && completed[completed.length - 1].length > 0 ? completed[completed.length - 1] : incomplete.length > 0 ? incomplete[incomplete.length - 1] : null;
-          if (lastBlock)
-            lastBlock.push(docLines[i]);
-          else {
-            incomplete.push([docLines[i]]);
-          }
-          i++;
-          continue;
-        }
         if (p.indent.length < groupIndent) {
           break;
+        }
+        if (p.indent.length > groupIndent) {
+          const lastBlock = (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) || (completed.length > 0 ? completed[completed.length - 1] : null);
+          if (lastBlock)
+            lastBlock.push(docLines[i]);
+          else
+            incomplete.push([docLines[i]]);
+          i++;
+          continue;
         }
         const block = [docLines[i]];
         const isComp = isCompleted(p.status, this.settings.excludedChars);
         i++;
-        if (this.settings.moveWithSubtasks) {
-          while (i < docLines.length) {
-            const subIndent = ((_d = (_c = docLines[i].match(/^(\s*)/)) == null ? void 0 : _c[1]) != null ? _d : "").length;
-            if (subIndent <= groupIndent)
-              break;
-            if (docLines[i].trim() === "")
-              break;
-            block.push(docLines[i]);
-            i++;
-          }
+        while (i < docLines.length) {
+          if (docLines[i].trim() === "")
+            break;
+          const subIndent = ((_d = (_c = docLines[i].match(/^(\s*)/)) == null ? void 0 : _c[1]) != null ? _d : "").length;
+          if (subIndent <= groupIndent)
+            break;
+          block.push(docLines[i]);
+          i++;
         }
         if (isComp) {
           completed.push(block);
@@ -469,10 +466,18 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
           incomplete.push(block);
         }
       }
-      for (const block of incomplete)
-        output.push(...block);
-      for (const block of completed)
-        output.push(...block);
+      const emit = (blocks) => {
+        for (const block of blocks) {
+          output.push(block[0]);
+          if (block.length > 1) {
+            const subtaskLines = block.slice(1);
+            const partitioned = this.partitionAllGroups(subtaskLines);
+            output.push(...partitioned);
+          }
+        }
+      };
+      emit(incomplete);
+      emit(completed);
     }
     return output;
   }
