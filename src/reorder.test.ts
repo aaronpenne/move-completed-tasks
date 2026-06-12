@@ -346,3 +346,51 @@ describe("computeReorder - above-completed placement", () => {
     });
   });
 });
+
+describe("computeReorder - code fence immunity", () => {
+  it("checkbox-like lines inside code fence are ignored", () => {
+    const lines = [
+      "- [x] done task",
+      "- [ ] task two",
+      "```",
+      "- [x] this is code not a task",
+      "```",
+      "- [ ] task after fence",
+    ];
+    const result = computeReorder(lines, 0, DEFAULT_TEST_SETTINGS);
+    expect(result).toEqual({
+      removeFrom: 0,
+      removeTo: 0,
+      insertAt: 1,
+      lines: ["- [x] done task"],
+    });
+  });
+
+  it("tilde fence also bounds group", () => {
+    const lines = [
+      "- [x] done task",
+      "- [ ] task two",
+      "~~~",
+      "- [ ] inside fence",
+      "~~~",
+    ];
+    const result = computeReorder(lines, 0, DEFAULT_TEST_SETTINGS);
+    expect(result).toEqual({
+      removeFrom: 0,
+      removeTo: 0,
+      insertAt: 1,
+      lines: ["- [x] done task"],
+    });
+  });
+
+  it("completed line index inside a fence returns null", () => {
+    const lines = [
+      "```",
+      "- [x] this looks complete but is inside a fence",
+      "- [ ] also in fence",
+      "```",
+    ];
+    const result = computeReorder(lines, 1, DEFAULT_TEST_SETTINGS);
+    expect(result).toBeNull();
+  });
+});

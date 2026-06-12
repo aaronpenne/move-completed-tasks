@@ -44,6 +44,16 @@ export function isCompleted(status: string, excludedChars: string): boolean {
   return true;
 }
 
+function isInsideFence(docLines: string[], lineIndex: number): boolean {
+  let insideFence = false;
+  for (let i = 0; i < lineIndex; i++) {
+    if (FENCE_RE.test(docLines[i])) {
+      insideFence = !insideFence;
+    }
+  }
+  return insideFence;
+}
+
 interface MovedBlock {
   from: number;
   lines: string[];
@@ -183,6 +193,8 @@ export function computeReorder(
 ): MoveDescriptor | null {
   const line = docLines[completedLineIndex];
   if (line === undefined) return null;
+
+  if (isInsideFence(docLines, completedLineIndex)) return null;
 
   const parsed = parseCheckbox(line);
   if (!parsed) return null;
