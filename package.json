@@ -1,0 +1,29 @@
+{
+  "name": "obsidian-move-completed",
+  "version": "1.0.0",
+  "description": "Instantly move completed tasks to the bottom of their checkbox group",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "test": "jest",
+    "lint": "eslint src/"
+  },
+  "keywords": ["obsidian", "plugin", "tasks", "checkbox"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "obsidian": "latest",
+    "typescript": "^5.3.0",
+    "tslib": "^2.6.0"
+  }
+}
