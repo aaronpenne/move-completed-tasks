@@ -1,6 +1,6 @@
-[![GitHub release](https://img.shields.io/github/v/release/aaronpenne/obsidian-move-completed?style=flat-square&logo=github)](https://github.com/aaronpenne/obsidian-move-completed/releases/latest)
+[![GitHub release](https://img.shields.io/github/v/release/aaronpenne/move-completed-tasks?style=flat-square&logo=github)](https://github.com/aaronpenne/move-completed-tasks/releases/latest)
 ![Obsidian](https://img.shields.io/badge/obsidian-1.5.0+-7c3aed?style=flat-square)
-![License](https://img.shields.io/github/license/aaronpenne/obsidian-move-completed?style=flat-square)
+![License](https://img.shields.io/github/license/aaronpenne/move-completed-tasks?style=flat-square)
 
 # Move Completed Tasks
 
@@ -10,9 +10,9 @@ For pages that already have scattered completed tasks, two commands let you clea
 
 ## Install
 
-**Manual (recommended):** Download `obsidian-move-completed.zip` from the [latest release](https://github.com/aaronpenne/obsidian-move-completed/releases/latest), unzip it into your vault's plugin folder (`<vault>/.obsidian/plugins/`), and enable in Settings > Community plugins.
+**Manual (recommended):** Download `move-completed-tasks.zip` from the [latest release](https://github.com/aaronpenne/move-completed-tasks/releases/latest), unzip it into your vault's plugin folder (`<vault>/.obsidian/plugins/`), and enable in Settings > Community plugins.
 
-**[BRAT](https://github.com/TfTHacker/obsidian42-brat):** Add `aaronpenne/obsidian-move-completed` in BRAT settings.
+**[BRAT](https://github.com/TfTHacker/obsidian42-brat):** Add `aaronpenne/move-completed-tasks` in BRAT settings.
 
 ## How it works
 

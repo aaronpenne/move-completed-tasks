@@ -38,15 +38,15 @@ jobs:
 
       - name: Bundle plugin zip
         run: |
-          mkdir obsidian-move-completed
-          cp main.js manifest.json styles.css obsidian-move-completed/
-          zip -r obsidian-move-completed.zip obsidian-move-completed/
+          mkdir move-completed-tasks
+          cp main.js manifest.json styles.css move-completed-tasks/
+          zip -r move-completed-tasks.zip move-completed-tasks/
 
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            obsidian-move-completed.zip
+            move-completed-tasks.zip
             main.js
             manifest.json
             styles.css
