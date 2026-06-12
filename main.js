@@ -32,7 +32,8 @@ var DEFAULT_SETTINGS = {
   enabled: true,
   moveWithSubtasks: true,
   placement: "bottom",
-  excludedChars: '?!*"lbiSIpcfkwud'
+  excludedChars: '?!*"lbiSIpcfkwud',
+  highlightMove: true
 };
 var MoveCompletedSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
@@ -65,6 +66,12 @@ var MoveCompletedSettingTab = class extends import_obsidian.PluginSettingTab {
     ).addText(
       (text) => text.setPlaceholder('?!*"lbiSIpcfkwud').setValue(this.plugin.settings.excludedChars).onChange(async (value) => {
         this.plugin.settings.excludedChars = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Highlight moved task").setDesc("Briefly highlight the task at its new position").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.highlightMove).onChange(async (value) => {
+        this.plugin.settings.highlightMove = value;
         await this.plugin.saveSettings();
       })
     );
@@ -354,14 +361,17 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     const cursorLineNum = adjustedInsertAt + 2;
     const newDoc = import_state.Text.of(newText.split("\n"));
     const cursorLine = newDoc.line(cursorLineNum);
+    const effects = this.settings.highlightMove ? [highlightEffect.of(cursorLine.from)] : [];
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
       selection: import_state.EditorSelection.cursor(cursorLine.from),
       annotations: [reorderAnnotation.of(true)],
-      effects: [highlightEffect.of(cursorLine.from)]
+      effects
     });
-    setTimeout(() => {
-      view.dispatch({ effects: [clearHighlightEffect.of(null)] });
-    }, 1300);
+    if (this.settings.highlightMove) {
+      setTimeout(() => {
+        view.dispatch({ effects: [clearHighlightEffect.of(null)] });
+      }, 2e3);
+    }
   }
 };

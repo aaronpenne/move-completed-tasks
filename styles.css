@@ -1,11 +1,9 @@
 @keyframes move-completed-flash {
-  0% { background-color: var(--text-highlight-bg); }
-  20% { background-color: transparent; }
-  35% { background-color: var(--text-highlight-bg); }
+  0% { background-color: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.12); }
   100% { background-color: transparent; }
 }
 
 .move-completed-highlight {
-  animation: move-completed-flash 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: move-completed-flash 1.8s ease-out;
   border-radius: 3px;
 }

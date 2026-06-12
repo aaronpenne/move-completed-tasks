@@ -129,15 +129,21 @@ export default class MoveCompletedPlugin extends Plugin {
     const newDoc = Text.of(newText.split("\n"));
     const cursorLine = newDoc.line(cursorLineNum);
 
+    const effects = this.settings.highlightMove
+      ? [highlightEffect.of(cursorLine.from)]
+      : [];
+
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
       selection: EditorSelection.cursor(cursorLine.from),
       annotations: [reorderAnnotation.of(true)],
-      effects: [highlightEffect.of(cursorLine.from)],
+      effects,
     });
 
-    setTimeout(() => {
-      view.dispatch({ effects: [clearHighlightEffect.of(null)] });
-    }, 1300);
+    if (this.settings.highlightMove) {
+      setTimeout(() => {
+        view.dispatch({ effects: [clearHighlightEffect.of(null)] });
+      }, 2000);
+    }
   }
 }

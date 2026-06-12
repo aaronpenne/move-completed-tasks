@@ -6,6 +6,7 @@ export interface MoveCompletedSettings {
   moveWithSubtasks: boolean;
   placement: 'bottom' | 'above-completed';
   excludedChars: string;
+  highlightMove: boolean;
 }
 
 export const DEFAULT_SETTINGS: MoveCompletedSettings = {
@@ -13,6 +14,7 @@ export const DEFAULT_SETTINGS: MoveCompletedSettings = {
   moveWithSubtasks: true,
   placement: 'bottom',
   excludedChars: '?!*"lbiSIpcfkwud',
+  highlightMove: true,
 };
 
 export class MoveCompletedSettingTab extends PluginSettingTab {
@@ -76,6 +78,18 @@ export class MoveCompletedSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.excludedChars)
           .onChange(async (value) => {
             this.plugin.settings.excludedChars = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Highlight moved task")
+      .setDesc("Briefly highlight the task at its new position")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.highlightMove)
+          .onChange(async (value) => {
+            this.plugin.settings.highlightMove = value;
             await this.plugin.saveSettings();
           })
       );
