@@ -196,6 +196,7 @@ export function computeReorder(
 
   const movedBlockEnd = movedBlock.from + movedBlock.lines.length - 1;
   if (insertAt === movedBlockEnd) return null;
+  if (insertAt === movedBlock.from - 1) return null;
   if (group.length <= 1) return null;
 
   return {

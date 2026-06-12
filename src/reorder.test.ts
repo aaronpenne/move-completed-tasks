@@ -282,3 +282,67 @@ describe("computeReorder - mixed indent levels", () => {
     });
   });
 });
+
+describe("computeReorder - above-completed placement", () => {
+  const aboveSettings: ReorderSettings = {
+    ...DEFAULT_TEST_SETTINGS,
+    placement: "above-completed",
+  };
+
+  it("places newly completed task above existing completed tasks", () => {
+    const lines = [
+      "- [x] newly done",
+      "- [ ] incomplete",
+      "- [x] previously done",
+    ];
+    const result = computeReorder(lines, 0, aboveSettings);
+    expect(result).toEqual({
+      removeFrom: 0,
+      removeTo: 0,
+      insertAt: 1,
+      lines: ["- [x] newly done"],
+    });
+  });
+
+  it("places after last incomplete when multiple completed at end", () => {
+    const lines = [
+      "- [x] newly done",
+      "- [ ] incomplete one",
+      "- [ ] incomplete two",
+      "- [x] old done one",
+      "- [x] old done two",
+    ];
+    const result = computeReorder(lines, 0, aboveSettings);
+    expect(result).toEqual({
+      removeFrom: 0,
+      removeTo: 0,
+      insertAt: 2,
+      lines: ["- [x] newly done"],
+    });
+  });
+
+  it("no-op when already at correct position", () => {
+    const lines = [
+      "- [ ] incomplete",
+      "- [x] newly done",
+      "- [x] old done",
+    ];
+    const result = computeReorder(lines, 1, aboveSettings);
+    expect(result).toBeNull();
+  });
+
+  it("moves to bottom when no existing completed tasks", () => {
+    const lines = [
+      "- [x] newly done",
+      "- [ ] task two",
+      "- [ ] task three",
+    ];
+    const result = computeReorder(lines, 0, aboveSettings);
+    expect(result).toEqual({
+      removeFrom: 0,
+      removeTo: 0,
+      insertAt: 2,
+      lines: ["- [x] newly done"],
+    });
+  });
+});
