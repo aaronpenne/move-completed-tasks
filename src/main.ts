@@ -167,23 +167,21 @@ export default class MoveCompletedPlugin extends Plugin {
 
   private bulkMoveScoped(view: EditorView) {
     const doc = view.state.doc;
-    let docLines: string[] = [];
+    const docLines: string[] = [];
     for (let i = 1; i <= doc.lines; i++) {
       docLines.push(doc.line(i).text);
     }
 
     const settings = {
       moveWithSubtasks: this.settings.moveWithSubtasks,
-      placement: this.settings.placement,
+      placement: 'bottom' as const,
       excludedChars: this.settings.excludedChars,
     };
 
     let changed = true;
-    let passes = 0;
-    while (changed && passes < 200) {
+    while (changed) {
       changed = false;
-      passes++;
-      for (let i = docLines.length - 1; i >= 0; i--) {
+      for (let i = 0; i < docLines.length; i++) {
         const parsed = parseCheckbox(docLines[i]);
         if (!parsed) continue;
         if (!isCompleted(parsed.status, this.settings.excludedChars)) continue;

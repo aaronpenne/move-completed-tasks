@@ -394,21 +394,19 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
   }
   bulkMoveScoped(view) {
     const doc = view.state.doc;
-    let docLines = [];
+    const docLines = [];
     for (let i = 1; i <= doc.lines; i++) {
       docLines.push(doc.line(i).text);
     }
     const settings = {
       moveWithSubtasks: this.settings.moveWithSubtasks,
-      placement: this.settings.placement,
+      placement: "bottom",
       excludedChars: this.settings.excludedChars
     };
     let changed = true;
-    let passes = 0;
-    while (changed && passes < 200) {
+    while (changed) {
       changed = false;
-      passes++;
-      for (let i = docLines.length - 1; i >= 0; i--) {
+      for (let i = 0; i < docLines.length; i++) {
         const parsed = parseCheckbox(docLines[i]);
         if (!parsed)
           continue;
