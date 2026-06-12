@@ -138,6 +138,6 @@ export default class MoveCompletedPlugin extends Plugin {
 
     setTimeout(() => {
       view.dispatch({ effects: [clearHighlightEffect.of(null)] });
-    }, 600);
+    }, 1300);
   }
 }

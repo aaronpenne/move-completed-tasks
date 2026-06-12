@@ -362,6 +362,6 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     });
     setTimeout(() => {
       view.dispatch({ effects: [clearHighlightEffect.of(null)] });
-    }, 600);
+    }, 1300);
   }
 };
