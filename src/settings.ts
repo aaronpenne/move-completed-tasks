@@ -26,5 +26,58 @@ export class MoveCompletedSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+
+    new Setting(containerEl)
+      .setName("Enable auto-move")
+      .setDesc("Automatically move completed tasks to the bottom of their group")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enabled)
+          .onChange(async (value) => {
+            this.plugin.settings.enabled = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Move with subtasks")
+      .setDesc("Move the task and all its nested subtasks as a block")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.moveWithSubtasks)
+          .onChange(async (value) => {
+            this.plugin.settings.moveWithSubtasks = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Placement")
+      .setDesc("Where to place the newly completed task within its group")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("bottom", "Bottom of group")
+          .addOption("above-completed", "Above existing completed tasks")
+          .setValue(this.plugin.settings.placement)
+          .onChange(async (value: string) => {
+            this.plugin.settings.placement = value as 'bottom' | 'above-completed';
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Excluded characters")
+      .setDesc(
+        "Checkbox characters that never trigger a move (Minimal theme decorators by default)"
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder('?!*"lbiSIpcfkwud')
+          .setValue(this.plugin.settings.excludedChars)
+          .onChange(async (value) => {
+            this.plugin.settings.excludedChars = value;
+            await this.plugin.saveSettings();
+          })
+      );
   }
 }
