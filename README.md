@@ -35,12 +35,12 @@ An [Obsidian](https://obsidian.md) plugin that automatically moves completed tas
 
 Available from the command palette (Ctrl/Cmd+P). Useful for cleaning up a page with scattered completed tasks.
 
-| Command | What it does | Suggested hotkey |
-|---------|--------------|------------------|
-| Move all completed tasks down (scoped) | Moves every completed task to the bottom of its group, including nested subtasks. Preserves relative order. | `Ctrl+Shift+M` |
-| Collect all completed tasks to end of document | Gathers all completed tasks and places them under a `## Completed` heading at the end of the note. | `Ctrl+Shift+Alt+M` |
+| Command | What it does |
+|---------|--------------|
+| Move all completed tasks down (scoped) | Moves every completed task to the bottom of its group, including nested subtasks. Preserves relative order. |
+| Collect all completed tasks to end of document | Gathers all completed tasks and places them under a `## Completed` heading at the end of the note. |
 
-No hotkeys are registered by default. Bind them in Settings > Hotkeys by searching "Move completed".
+No hotkeys are registered by default. Both commands can be bound to any key combo in Settings > Hotkeys (search "Move completed").
 
 ## How groups work
 
