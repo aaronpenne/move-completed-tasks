@@ -1,5 +1,16 @@
 import { Plugin } from "obsidian";
-import { MoveCompletedSettings, DEFAULT_SETTINGS, MoveCompletedSettingTab } from "./settings";
+import { EditorView, ViewUpdate } from "@codemirror/view";
+import { Annotation, EditorSelection, Text } from "@codemirror/state";
+import {
+  MoveCompletedSettings,
+  DEFAULT_SETTINGS,
+  MoveCompletedSettingTab,
+} from "./settings";
+import { computeReorder, parseCheckbox, isCompleted } from "./reorder";
+
+const reorderAnnotation = Annotation.define<boolean>();
+
+const CHECKBOX_RE = /^(\s*)([-*+])\s+\[(.)\]\s/;
 
 export default class MoveCompletedPlugin extends Plugin {
   settings: MoveCompletedSettings = DEFAULT_SETTINGS;
@@ -7,6 +18,7 @@ export default class MoveCompletedPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new MoveCompletedSettingTab(this.app, this));
+    this.registerEditorExtension(this.createEditorExtension());
   }
 
   async loadSettings() {
@@ -15,5 +27,90 @@ export default class MoveCompletedPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+
+  private createEditorExtension() {
+    const plugin = this;
+
+    return EditorView.updateListener.of((update: ViewUpdate) => {
+      if (!plugin.settings.enabled) return;
+      if (!update.docChanged) return;
+
+      for (const tr of update.transactions) {
+        if (tr.annotation(reorderAnnotation)) continue;
+
+        tr.changes.iterChanges((fromA, _toA, fromB) => {
+          const oldLine = update.startState.doc.lineAt(fromA);
+          const newLine = update.state.doc.lineAt(fromB);
+
+          const oldMatch = oldLine.text.match(CHECKBOX_RE);
+          const newMatch = newLine.text.match(CHECKBOX_RE);
+
+          if (!oldMatch || !newMatch) return;
+
+          const oldStatus = oldMatch[3];
+          const newStatus = newMatch[3];
+
+          if (
+            oldStatus === " " &&
+            newStatus !== " " &&
+            !plugin.settings.excludedChars.includes(newStatus)
+          ) {
+            const lineIndex = newLine.number - 1;
+            const view = update.view;
+            queueMicrotask(() => plugin.dispatchReorder(view, lineIndex));
+          }
+        });
+      }
+    });
+  }
+
+  private dispatchReorder(view: EditorView, lineIndex: number) {
+    if (!this.settings.enabled) return;
+
+    const doc = view.state.doc;
+    const docLines: string[] = [];
+    for (let i = 1; i <= doc.lines; i++) {
+      docLines.push(doc.line(i).text);
+    }
+
+    const currentLine = docLines[lineIndex];
+    if (!currentLine) return;
+
+    const parsed = parseCheckbox(currentLine);
+    if (!parsed) return;
+    if (!isCompleted(parsed.status, this.settings.excludedChars)) return;
+
+    const result = computeReorder(docLines, lineIndex, {
+      moveWithSubtasks: this.settings.moveWithSubtasks,
+      placement: this.settings.placement,
+      excludedChars: this.settings.excludedChars,
+    });
+
+    if (!result) return;
+
+    const removed = docLines.splice(
+      result.removeFrom,
+      result.removeTo - result.removeFrom + 1
+    );
+
+    let adjustedInsertAt: number;
+    if (result.removeFrom <= result.insertAt) {
+      adjustedInsertAt = result.insertAt - removed.length;
+    } else {
+      adjustedInsertAt = result.insertAt;
+    }
+    docLines.splice(adjustedInsertAt + 1, 0, ...removed);
+
+    const newText = docLines.join("\n");
+    const cursorLineNum = adjustedInsertAt + 2;
+    const newDoc = Text.of(newText.split("\n"));
+    const cursorLine = newDoc.line(cursorLineNum);
+
+    view.dispatch({
+      changes: { from: 0, to: doc.length, insert: newText },
+      selection: EditorSelection.cursor(cursorLine.from),
+      annotations: [reorderAnnotation.of(true)],
+    });
   }
 }
