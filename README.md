@@ -4,59 +4,62 @@
 
 # Move Completed Tasks
 
-An [Obsidian](https://obsidian.md) plugin that automatically moves completed tasks to the bottom of their checkbox group. Check a box and it sinks out of your way instantly.
+An [Obsidian](https://obsidian.md) plugin that keeps your task lists tidy. When you check off a task it moves to the bottom of its group automatically, and a gentle highlight confirms where it landed. Undo with a single Ctrl+Z.
 
-## Features
-
-- Moves completed checkboxes to the bottom of their contiguous group
-- Subtasks move with their parent as a block
-- Brief highlight shows where the task landed (optional)
-- Respects indent scoping: subtask completion stays within its parent
-- Single undo reverses the move
-- Minimal theme alternative checkboxes excluded by default
+For pages that already have scattered completed tasks, two commands let you clean everything up at once.
 
 ## Install
 
+**Manual (recommended):** Download `obsidian-move-completed.zip` from the [latest release](https://github.com/aaronpenne/obsidian-move-completed/releases/latest), unzip it into your vault's plugin folder (`<vault>/.obsidian/plugins/`), and enable in Settings > Community plugins.
+
 **[BRAT](https://github.com/TfTHacker/obsidian42-brat):** Add `aaronpenne/obsidian-move-completed` in BRAT settings.
 
-**Manual:** Download `main.js`, `manifest.json`, `styles.css` from [Releases](https://github.com/aaronpenne/obsidian-move-completed/releases) into `<vault>/.obsidian/plugins/obsidian-move-completed/`.
+## How it works
+
+A "group" is any uninterrupted run of checkboxes at the same indent level. Groups end at blank lines, headings, code fences, or non-checkbox content.
+
+When you complete a task:
+1. The task (and its subtasks, if any) moves to the bottom of its group
+2. A subtle highlight fades in at the new position so you don't lose track
+3. The operation is atomic: one undo reverses it
+
+Subtask completion stays scoped within the parent. A nested checkbox never escapes its parent's group.
+
+## Commands
+
+Open the command palette (Ctrl/Cmd+P) and search "Move completed":
+
+| Command | Description |
+|---------|-------------|
+| **Move all completed tasks down (scoped)** | Partitions every group in the document: incomplete tasks stay on top, completed tasks sink to the bottom. Recurses into subtask groups. Preserves relative order. |
+| **Collect all completed tasks to end of document** | Pulls all completed tasks out of the body and places them under a `## Completed` heading at the end of the note. |
+
+Both commands can be bound to hotkeys in Settings > Hotkeys.
 
 ## Settings
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| Enable | On | Master toggle |
-| Move with subtasks | On | Nested items move as a block |
-| Placement | Above completed | Above existing completed items, or bottom of group |
-| Excluded characters | `?!*"lbiSIpcfkwud` | Checkbox states that don't trigger a move |
-| Highlight moved task | On | Brief visual indicator at the new position |
+| Enable | On | Master toggle for the auto-move on check |
+| Move with subtasks | On | Move nested items as a block with their parent |
+| Placement | Above completed | Where newly completed tasks land: above other completed items (preserves a clear boundary), or absolute bottom of the group |
+| Excluded characters | `?!*"lbiSIpcfkwud` | Checkbox characters that represent status rather than completion (Minimal theme decorators by default) |
+| Highlight moved task | On | Show a brief visual indicator at the task's new position |
 
-## Commands
+## Theme compatibility
 
-Available from the command palette (Ctrl/Cmd+P). Useful for cleaning up a page with scattered completed tasks.
+Works with any theme that uses standard markdown checkboxes. Themes with alternative checkbox states (Minimal, AnuPpuccin, ITS Theme) are handled via the excluded characters setting. The default exclusion list covers all [Minimal theme](https://github.com/kepano/obsidian-minimal) decorators: `[?]` question, `[!]` important, `[*]` star, `["]` quote, `[l]` location, `[b]` bookmark, `[i]` info, `[S]` savings, `[I]` idea, `[p]` pros, `[c]` cons, `[f]` fire, `[k]` key, `[w]` win, `[u]` up, `[d]` down.
 
-| Command | What it does |
-|---------|--------------|
-| Move all completed tasks down (scoped) | Moves every completed task to the bottom of its group, including nested subtasks. Preserves relative order. |
-| Collect all completed tasks to end of document | Gathers all completed tasks and places them under a `## Completed` heading at the end of the note. |
+## Plugin compatibility
 
-No hotkeys are registered by default. Both commands can be bound to any key combo in Settings > Hotkeys (search "Move completed").
+- [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks): moves happen after the Tasks plugin appends done-dates, so timestamps are preserved
+- [Dataview](https://github.com/blacksmithgu/obsidian-dataview): no conflicts (Dataview reads, this plugin writes)
 
-## How groups work
+## Related
 
-A "group" is the contiguous run of checkboxes at the same indent level. Groups are bounded by blank lines, headings, code fences, or non-task content. Completing a subtask only reorders it among its siblings, never past its parent.
-
-## Compatibility
-
-- Obsidian 1.5.0+ (Live Preview)
-- [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin
-- [Minimal](https://github.com/kepano/obsidian-minimal), [AnuPpuccin](https://github.com/AnubisNekworbit/AnuPpuccin), and other themes with custom checkbox states
-
-## Related plugins
-
-- [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) — full task management with dates, recurrence, queries
-- [Completed Task Display](https://github.com/heliostatic/completed-task-display) — hides completed tasks via CSS
-- [Todo Sort](https://github.com/ryangomba/obsidian-todo-sort) — sorts tasks on file open
+- [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) — full task management with dates, recurrence, and queries
+- [Completed Task Display](https://github.com/heliostatic/completed-task-display) — hides completed tasks via CSS rather than moving them
+- [Todo Sort](https://github.com/ryangomba/obsidian-todo-sort) — sorts tasks on file open rather than on completion
 
 ## License
 
