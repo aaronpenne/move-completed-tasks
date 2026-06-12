@@ -1,4 +1,4 @@
-import { MarkdownView, Plugin } from "obsidian";
+import { Plugin } from "obsidian";
 import { Decoration, DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 import { Annotation, EditorSelection, StateEffect, StateField, Text } from "@codemirror/state";
 import {
@@ -45,18 +45,18 @@ export default class MoveCompletedPlugin extends Plugin {
     this.addCommand({
       id: "move-all-completed-down",
       name: "Move all completed tasks down (scoped)",
-      editorCallback: (_editor, view) => {
-        const cmView = ((view as MarkdownView).editor as any).cm as EditorView;
-        this.bulkMoveScoped(cmView);
+      editorCallback: (editor) => {
+        const cmView = (editor as any).cm as EditorView;
+        if (cmView) this.bulkMoveScoped(cmView);
       },
     });
 
     this.addCommand({
       id: "collect-completed-to-end",
       name: "Collect all completed tasks to end of document",
-      editorCallback: (_editor, view) => {
-        const cmView = ((view as MarkdownView).editor as any).cm as EditorView;
-        this.collectToEnd(cmView);
+      editorCallback: (editor) => {
+        const cmView = (editor as any).cm as EditorView;
+        if (cmView) this.collectToEnd(cmView);
       },
     });
   }

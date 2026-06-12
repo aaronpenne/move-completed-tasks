@@ -291,17 +291,19 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     this.addCommand({
       id: "move-all-completed-down",
       name: "Move all completed tasks down (scoped)",
-      editorCallback: (_editor, view) => {
-        const cmView = view.editor.cm;
-        this.bulkMoveScoped(cmView);
+      editorCallback: (editor) => {
+        const cmView = editor.cm;
+        if (cmView)
+          this.bulkMoveScoped(cmView);
       }
     });
     this.addCommand({
       id: "collect-completed-to-end",
       name: "Collect all completed tasks to end of document",
-      editorCallback: (_editor, view) => {
-        const cmView = view.editor.cm;
-        this.collectToEnd(cmView);
+      editorCallback: (editor) => {
+        const cmView = editor.cm;
+        if (cmView)
+          this.collectToEnd(cmView);
       }
     });
   }
