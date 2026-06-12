@@ -1,6 +1,6 @@
-![Version](https://img.shields.io/badge/version-0.2.1-blue?style=flat-square)
+![GitHub release](https://img.shields.io/github/v/release/aaronpenne/obsidian-move-completed?style=flat-square)
 ![Obsidian](https://img.shields.io/badge/obsidian-1.5.0+-7c3aed?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+![License](https://img.shields.io/github/license/aaronpenne/obsidian-move-completed?style=flat-square)
 
 # Move Completed Tasks
 
