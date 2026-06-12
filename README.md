@@ -1,4 +1,4 @@
-![GitHub release](https://img.shields.io/github/v/release/aaronpenne/obsidian-move-completed?style=flat-square)
+[![GitHub release](https://img.shields.io/github/v/release/aaronpenne/obsidian-move-completed?style=flat-square&logo=github)](https://github.com/aaronpenne/obsidian-move-completed/releases/latest)
 ![Obsidian](https://img.shields.io/badge/obsidian-1.5.0+-7c3aed?style=flat-square)
 ![License](https://img.shields.io/github/license/aaronpenne/obsidian-move-completed?style=flat-square)
 
