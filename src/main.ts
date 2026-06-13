@@ -178,33 +178,56 @@ export default class MoveCompletedPlugin extends Plugin {
 
     if (!result) return;
 
-    const removed = docLines.splice(
-      result.removeFrom,
-      result.removeTo - result.removeFrom + 1
-    );
+    // Surgical delete + insert so CodeMirror preserves scroll position.
+    // All offsets are in the ORIGINAL document; CodeMirror maps them.
+    const removeStartLine = doc.line(result.removeFrom + 1);
+    const removeEndLine = doc.line(result.removeTo + 1);
+    const removedText = doc.sliceString(removeStartLine.from, removeEndLine.to);
+    const blockLineCount = result.removeTo - result.removeFrom + 1;
 
+    // insertAt is the 0-based index of the line AFTER which we insert.
+    const insertAfterLine = doc.line(result.insertAt + 1);
+
+    let changes: {from: number; to: number; insert?: string}[];
+
+    if (result.removeFrom > result.insertAt) {
+      // Task moves UP: insert first (lower offset), then delete (higher offset).
+      // Changes must be sorted by position ascending for CodeMirror.
+      changes = [
+        { from: insertAfterLine.to, to: insertAfterLine.to, insert: "\n" + removedText },
+        { from: removeStartLine.from, to: Math.min(removeEndLine.to + 1, doc.length) },
+      ];
+    } else {
+      // Task moves DOWN: delete first (lower offset), then insert (higher offset).
+      const delTo = removeEndLine.to < doc.length ? removeEndLine.to + 1 : removeEndLine.to;
+      const delFrom = delTo === removeEndLine.to && removeStartLine.from > 0
+        ? removeStartLine.from - 1
+        : removeStartLine.from;
+      changes = [
+        { from: delFrom, to: delTo },
+        { from: insertAfterLine.to, to: insertAfterLine.to, insert: "\n" + removedText },
+      ];
+    }
+
+    // Compute highlight position in the final document.
+    const removed = docLines.splice(result.removeFrom, blockLineCount);
     let adjustedInsertAt: number;
     if (result.removeFrom <= result.insertAt) {
-      adjustedInsertAt = result.insertAt - removed.length;
+      adjustedInsertAt = result.insertAt - blockLineCount;
     } else {
       adjustedInsertAt = result.insertAt;
     }
     docLines.splice(adjustedInsertAt + 1, 0, ...removed);
-
-    const newText = docLines.join("\n");
-
-    // Highlight the task at its new position, but keep the cursor
-    // and viewport where they were so the page doesn't jump.
-    const cursorLineNum = adjustedInsertAt + 2;
-    const newDoc = Text.of(newText.split("\n"));
-    const cursorLine = newDoc.line(cursorLineNum);
+    const finalText = docLines.join("\n");
+    const finalDoc = Text.of(finalText.split("\n"));
+    const highlightLine = finalDoc.line(adjustedInsertAt + 2);
 
     const effects = this.settings.highlightMove
-      ? [highlightEffect.of(cursorLine.from)]
+      ? [highlightEffect.of(highlightLine.from)]
       : [];
 
     view.dispatch({
-      changes: { from: 0, to: doc.length, insert: newText },
+      changes,
       annotations: [reorderAnnotation.of(true)],
       effects,
       scrollIntoView: false,
@@ -218,6 +241,7 @@ export default class MoveCompletedPlugin extends Plugin {
   }
 
   private bulkMoveScoped(view: EditorView) {
+    const scrollTop = view.scrollDOM.scrollTop;
     const doc = view.state.doc;
     const lines = this.getDocLines(view);
     if (this.isNoteDisabled(view)) return;
@@ -230,9 +254,11 @@ export default class MoveCompletedPlugin extends Plugin {
       annotations: [reorderAnnotation.of(true)],
       scrollIntoView: false,
     });
+    view.scrollDOM.scrollTop = scrollTop;
   }
 
   private collectToEnd(view: EditorView) {
+    const scrollTop = view.scrollDOM.scrollTop;
     const doc = view.state.doc;
     const lines = this.getDocLines(view);
     if (this.isNoteDisabled(view)) return;
@@ -245,5 +271,6 @@ export default class MoveCompletedPlugin extends Plugin {
       annotations: [reorderAnnotation.of(true)],
       scrollIntoView: false,
     });
+    view.scrollDOM.scrollTop = scrollTop;
   }
 }

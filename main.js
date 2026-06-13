@@ -608,24 +608,39 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     const result = computeReorder(docLines, lineIndex, this.settings);
     if (!result)
       return;
-    const removed = docLines.splice(
-      result.removeFrom,
-      result.removeTo - result.removeFrom + 1
-    );
+    const removeStartLine = doc.line(result.removeFrom + 1);
+    const removeEndLine = doc.line(result.removeTo + 1);
+    const removedText = doc.sliceString(removeStartLine.from, removeEndLine.to);
+    const blockLineCount = result.removeTo - result.removeFrom + 1;
+    const insertAfterLine = doc.line(result.insertAt + 1);
+    let changes;
+    if (result.removeFrom > result.insertAt) {
+      changes = [
+        { from: insertAfterLine.to, to: insertAfterLine.to, insert: "\n" + removedText },
+        { from: removeStartLine.from, to: Math.min(removeEndLine.to + 1, doc.length) }
+      ];
+    } else {
+      const delTo = removeEndLine.to < doc.length ? removeEndLine.to + 1 : removeEndLine.to;
+      const delFrom = delTo === removeEndLine.to && removeStartLine.from > 0 ? removeStartLine.from - 1 : removeStartLine.from;
+      changes = [
+        { from: delFrom, to: delTo },
+        { from: insertAfterLine.to, to: insertAfterLine.to, insert: "\n" + removedText }
+      ];
+    }
+    const removed = docLines.splice(result.removeFrom, blockLineCount);
     let adjustedInsertAt;
     if (result.removeFrom <= result.insertAt) {
-      adjustedInsertAt = result.insertAt - removed.length;
+      adjustedInsertAt = result.insertAt - blockLineCount;
     } else {
       adjustedInsertAt = result.insertAt;
     }
     docLines.splice(adjustedInsertAt + 1, 0, ...removed);
-    const newText = docLines.join("\n");
-    const cursorLineNum = adjustedInsertAt + 2;
-    const newDoc = import_state.Text.of(newText.split("\n"));
-    const cursorLine = newDoc.line(cursorLineNum);
-    const effects = this.settings.highlightMove ? [highlightEffect.of(cursorLine.from)] : [];
+    const finalText = docLines.join("\n");
+    const finalDoc = import_state.Text.of(finalText.split("\n"));
+    const highlightLine = finalDoc.line(adjustedInsertAt + 2);
+    const effects = this.settings.highlightMove ? [highlightEffect.of(highlightLine.from)] : [];
     view.dispatch({
-      changes: { from: 0, to: doc.length, insert: newText },
+      changes,
       annotations: [reorderAnnotation.of(true)],
       effects,
       scrollIntoView: false
@@ -637,6 +652,7 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     }
   }
   bulkMoveScoped(view) {
+    const scrollTop = view.scrollDOM.scrollTop;
     const doc = view.state.doc;
     const lines = this.getDocLines(view);
     if (this.isNoteDisabled(view))
@@ -650,8 +666,10 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
       annotations: [reorderAnnotation.of(true)],
       scrollIntoView: false
     });
+    view.scrollDOM.scrollTop = scrollTop;
   }
   collectToEnd(view) {
+    const scrollTop = view.scrollDOM.scrollTop;
     const doc = view.state.doc;
     const lines = this.getDocLines(view);
     if (this.isNoteDisabled(view))
@@ -665,5 +683,6 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
       annotations: [reorderAnnotation.of(true)],
       scrollIntoView: false
     });
+    view.scrollDOM.scrollTop = scrollTop;
   }
 };

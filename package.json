@@ -1,6 +1,6 @@
 {
   "name": "move-completed-tasks",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Instantly move completed tasks to the bottom of their checkbox group",
   "main": "main.js",
   "scripts": {
