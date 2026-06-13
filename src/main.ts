@@ -192,6 +192,9 @@ export default class MoveCompletedPlugin extends Plugin {
     docLines.splice(adjustedInsertAt + 1, 0, ...removed);
 
     const newText = docLines.join("\n");
+
+    // Highlight the task at its new position, but keep the cursor
+    // and viewport where they were so the page doesn't jump.
     const cursorLineNum = adjustedInsertAt + 2;
     const newDoc = Text.of(newText.split("\n"));
     const cursorLine = newDoc.line(cursorLineNum);
@@ -202,9 +205,9 @@ export default class MoveCompletedPlugin extends Plugin {
 
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
-      selection: EditorSelection.cursor(cursorLine.from),
       annotations: [reorderAnnotation.of(true)],
       effects,
+      scrollIntoView: false,
     });
 
     if (this.settings.highlightMove) {
@@ -225,6 +228,7 @@ export default class MoveCompletedPlugin extends Plugin {
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
       annotations: [reorderAnnotation.of(true)],
+      scrollIntoView: false,
     });
   }
 
@@ -239,6 +243,7 @@ export default class MoveCompletedPlugin extends Plugin {
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
       annotations: [reorderAnnotation.of(true)],
+      scrollIntoView: false,
     });
   }
 }

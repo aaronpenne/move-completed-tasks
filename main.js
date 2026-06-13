@@ -34,6 +34,8 @@ var DEFAULT_SETTINGS = {
   placement: "above-completed",
   excludedChars: '?!*"lbiSIpcfkwud',
   completedHeading: "Completed",
+  skipSubtasksWithOpenParent: false,
+  sectionAwareCollection: false,
   highlightMove: true,
   moveDelay: 0
 };
@@ -57,6 +59,12 @@ var MoveCompletedSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian.Setting(containerEl).setName("Skip subtasks with open parent").setDesc("Don't move a completed subtask if its parent task is still open").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.skipSubtasksWithOpenParent).onChange(async (value) => {
+        this.plugin.settings.skipSubtasksWithOpenParent = value;
+        await this.plugin.saveSettings();
+      })
+    );
     new import_obsidian.Setting(containerEl).setName("Placement").setDesc("Where to place the newly completed task within its group").addDropdown(
       (dropdown) => dropdown.addOption("bottom", "Bottom of group").addOption("above-completed", "Above existing completed tasks").setValue(this.plugin.settings.placement).onChange(async (value) => {
         this.plugin.settings.placement = value;
@@ -76,6 +84,12 @@ var MoveCompletedSettingTab = class extends import_obsidian.PluginSettingTab {
     ).addText(
       (text) => text.setPlaceholder("Completed").setValue(this.plugin.settings.completedHeading).onChange(async (value) => {
         this.plugin.settings.completedHeading = value || "Completed";
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Section-aware collection").setDesc("When collecting completed tasks, group them under sub-headings that mirror the original document structure").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.sectionAwareCollection).onChange(async (value) => {
+        this.plugin.settings.sectionAwareCollection = value;
         await this.plugin.saveSettings();
       })
     );
@@ -140,6 +154,28 @@ function isInsideFence(docLines, lineIndex) {
     }
   }
   return insideFence;
+}
+function hasOpenParent(docLines, lineIndex, excludedChars) {
+  const lineParsed = parseCheckbox(docLines[lineIndex]);
+  if (!lineParsed)
+    return false;
+  const lineIndent = getIndentLevel(lineParsed.indent);
+  if (lineIndent === 0)
+    return false;
+  for (let i = lineIndex - 1; i >= 0; i--) {
+    const line = docLines[i];
+    const p = parseCheckbox(line);
+    if (!p) {
+      if (line.trim() === "" || isGroupBoundary(line))
+        return false;
+      continue;
+    }
+    const parentIndent = getIndentLevel(p.indent);
+    if (parentIndent < lineIndent) {
+      return !isCompleted(p.status, excludedChars);
+    }
+  }
+  return false;
 }
 function buildMovedBlock(docLines, startIndex, targetIndentLevel, settings) {
   var _a, _b;
@@ -303,29 +339,40 @@ function partitionGroups(lines, settings) {
         incomplete.push(block);
       }
     }
-    const emit = (blocks) => {
+    const emit = (blocks, parentCompleted) => {
       for (const block of blocks) {
         output.push(block[0]);
         if (block.length > 1) {
           const subtaskLines = block.slice(1);
-          const partitioned = partitionGroups(subtaskLines, settings);
-          output.push(...partitioned);
+          if (settings.skipSubtasksWithOpenParent && !parentCompleted) {
+            output.push(...subtaskLines);
+          } else {
+            const partitioned = partitionGroups(subtaskLines, settings);
+            output.push(...partitioned);
+          }
         }
       }
     };
-    emit(incomplete);
-    emit(completed);
+    emit(incomplete, false);
+    emit(completed, true);
   }
   return output;
 }
 function collectCompleted(lines, settings) {
   var _a, _b;
-  const collected = [];
   const remaining = [];
+  let currentHeading = null;
+  const sectionMap = /* @__PURE__ */ new Map();
+  const sectionOrder = [];
+  const flatCollected = [];
   for (let i = 0; i < lines.length; i++) {
+    const headingMatch = lines[i].match(/^(#{1,6})\s+(.*)/);
+    if (headingMatch) {
+      currentHeading = lines[i];
+    }
     const parsed = parseCheckbox(lines[i]);
-    if (parsed && isCompleted(parsed.status, settings.excludedChars)) {
-      collected.push(lines[i]);
+    if (parsed && isCompleted(parsed.status, settings.excludedChars) && !(settings.skipSubtasksWithOpenParent && hasOpenParent(lines, i, settings.excludedChars))) {
+      const taskLines = [lines[i]];
       if (settings.moveWithSubtasks) {
         const baseLevel = parsed.indent.length;
         let j = i + 1;
@@ -335,21 +382,46 @@ function collectCompleted(lines, settings) {
             break;
           if (lines[j].trim() === "")
             break;
-          collected.push(lines[j]);
+          taskLines.push(lines[j]);
           j++;
         }
         i = j - 1;
+      }
+      if (settings.sectionAwareCollection && currentHeading) {
+        const key = currentHeading;
+        if (!sectionMap.has(key)) {
+          sectionMap.set(key, []);
+          sectionOrder.push(key);
+        }
+        sectionMap.get(key).push(...taskLines);
+      } else {
+        flatCollected.push(...taskLines);
       }
     } else {
       remaining.push(lines[i]);
     }
   }
-  if (collected.length === 0)
+  const hasCollected = flatCollected.length > 0 || sectionMap.size > 0;
+  if (!hasCollected)
     return lines;
   while (remaining.length > 0 && remaining[remaining.length - 1].trim() === "") {
     remaining.pop();
   }
-  return [...remaining, "", `## ${settings.completedHeading}`, "", ...collected];
+  const result = [...remaining, "", `## ${settings.completedHeading}`, ""];
+  if (settings.sectionAwareCollection && sectionMap.size > 0) {
+    result.push(...flatCollected);
+    for (const heading of sectionOrder) {
+      const match = heading.match(/^(#{1,6})\s+(.*)/);
+      if (match) {
+        const hashes = match[1].length < 6 ? "#".repeat(match[1].length + 1) : match[1];
+        result.push(`${hashes} ${match[2]}`);
+      }
+      result.push(...sectionMap.get(heading));
+    }
+  } else {
+    result.push(...flatCollected);
+  }
+  return result;
 }
 function computeReorder(docLines, completedLineIndex, settings) {
   const line = docLines[completedLineIndex];
@@ -361,6 +433,8 @@ function computeReorder(docLines, completedLineIndex, settings) {
   if (!parsed)
     return null;
   if (!isCompleted(parsed.status, settings.excludedChars))
+    return null;
+  if (settings.skipSubtasksWithOpenParent && hasOpenParent(docLines, completedLineIndex, settings.excludedChars))
     return null;
   const targetIndentLevel = getIndentLevel(parsed.indent);
   const movedBlock = buildMovedBlock(docLines, completedLineIndex, targetIndentLevel, settings);
@@ -450,6 +524,8 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
         return;
       if (!update.docChanged)
         return;
+      if (this.isNoteDisabled(update.view))
+        return;
       for (const tr of update.transactions) {
         if (tr.annotation(reorderAnnotation))
           continue;
@@ -499,8 +575,25 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     }
     return lines;
   }
+  isNoteDisabled(view) {
+    const doc = view.state.doc;
+    if (doc.lines < 3)
+      return false;
+    if (doc.line(1).text !== "---")
+      return false;
+    for (let i = 2; i <= doc.lines; i++) {
+      const text = doc.line(i).text;
+      if (text === "---")
+        return false;
+      if (/^move-completed:\s*false\s*$/.test(text))
+        return true;
+    }
+    return false;
+  }
   dispatchReorder(view, lineIndex) {
     if (!this.settings.enabled)
+      return;
+    if (this.isNoteDisabled(view))
       return;
     const doc = view.state.doc;
     const docLines = this.getDocLines(view);
@@ -512,11 +605,7 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
       return;
     if (!isCompleted(parsed.status, this.settings.excludedChars))
       return;
-    const result = computeReorder(docLines, lineIndex, {
-      moveWithSubtasks: this.settings.moveWithSubtasks,
-      placement: this.settings.placement,
-      excludedChars: this.settings.excludedChars
-    });
+    const result = computeReorder(docLines, lineIndex, this.settings);
     if (!result)
       return;
     const removed = docLines.splice(
@@ -537,9 +626,9 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     const effects = this.settings.highlightMove ? [highlightEffect.of(cursorLine.from)] : [];
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
-      selection: import_state.EditorSelection.cursor(cursorLine.from),
       annotations: [reorderAnnotation.of(true)],
-      effects
+      effects,
+      scrollIntoView: false
     });
     if (this.settings.highlightMove) {
       window.setTimeout(() => {
@@ -550,25 +639,31 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
   bulkMoveScoped(view) {
     const doc = view.state.doc;
     const lines = this.getDocLines(view);
+    if (this.isNoteDisabled(view))
+      return;
     const result = partitionGroups(lines, this.settings);
     const newText = result.join("\n");
     if (newText === doc.toString())
       return;
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
-      annotations: [reorderAnnotation.of(true)]
+      annotations: [reorderAnnotation.of(true)],
+      scrollIntoView: false
     });
   }
   collectToEnd(view) {
     const doc = view.state.doc;
     const lines = this.getDocLines(view);
+    if (this.isNoteDisabled(view))
+      return;
     const result = collectCompleted(lines, this.settings);
     const newText = result.join("\n");
     if (newText === doc.toString())
       return;
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
-      annotations: [reorderAnnotation.of(true)]
+      annotations: [reorderAnnotation.of(true)],
+      scrollIntoView: false
     });
   }
 };
