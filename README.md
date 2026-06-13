@@ -12,7 +12,9 @@ For pages that already have scattered completed tasks, two commands let you clea
 
 ## Install
 
-**Manual (recommended):** Download `move-completed-tasks.zip` from the [latest release](https://github.com/aaronpenne/move-completed-tasks/releases/latest), unzip it into your vault's plugin folder (`<vault>/.obsidian/plugins/`), and enable in Settings > Community plugins.
+**Community plugins:** Open Settings > Community plugins > Browse, search "Move Completed Tasks", click Install, then Enable. Or install directly via [this link](https://obsidian.md/plugins?id=move-completed-tasks).
+
+**Manual:** Download `move-completed-tasks.zip` from the [latest release](https://github.com/aaronpenne/move-completed-tasks/releases/latest), unzip it into your vault's plugin folder (`<vault>/.obsidian/plugins/`), and enable in Settings > Community plugins.
 
 **[BRAT](https://github.com/TfTHacker/obsidian42-brat):** Add `aaronpenne/move-completed-tasks` in BRAT settings.
 
@@ -47,6 +49,7 @@ Both commands can be bound to hotkeys in Settings > Hotkeys.
 | Placement | Above completed | Where newly completed tasks land: above other completed items (preserves a clear boundary), or absolute bottom of the group |
 | Excluded characters | `?!*"lbiSIpcfkwud` | Checkbox characters that represent status rather than completion (Minimal theme decorators by default) |
 | Highlight moved task | On | Show a brief visual indicator at the task's new position |
+| Move delay | 0s | Seconds to wait before moving (0 = instant). Unchecking before the delay fires cancels the move. |
 
 ## Theme compatibility
 
