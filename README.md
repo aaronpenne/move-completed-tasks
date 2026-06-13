@@ -57,10 +57,14 @@ Both can be bound to hotkeys in Settings > Hotkeys.
 Works with any theme that uses standard markdown checkboxes. Themes like Minimal, AnuPpuccin, and ITS Theme add alternative checkbox states (`[?]` for question, `[!]` for important, etc.), and the excluded characters setting keeps those from being treated as completed. The default exclusion list covers all [Minimal theme](https://github.com/kepano/obsidian-minimal) decorators:
 
 ```
-[?] question    [!] important   [*] star       ["] quote
-[l] location    [b] bookmark    [i] info       [S] savings
-[I] idea        [p] pros        [c] cons       [f] fire
-[k] key         [w] win         [u] up         [d] down
+[?] question    [!] important
+[*] star        ["] quote
+[l] location    [b] bookmark
+[i] info        [S] savings
+[I] idea        [p] pros
+[c] cons        [f] fire
+[k] key         [w] win
+[u] up          [d] down
 ```
 
 ## Related plugins
