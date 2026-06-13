@@ -35,7 +35,7 @@ Open the command palette (Ctrl/Cmd+P) and search "Move completed":
 | Command | What it does |
 |---------|-------------|
 | Move all completed tasks down (scoped) | Goes through every group in the document and pushes completed tasks to the bottom. Handles nesting. Keeps relative order. |
-| Collect all completed tasks to end of document | Pulls every completed task out of the body and drops them under a `## Completed` heading at the end of the note. |
+| Collect all completed tasks to end of document | Pulls every completed task out of the body and drops them under a configurable `## Completed` heading at the end of the note. |
 
 Both can be bound to hotkeys in Settings > Hotkeys.
 
@@ -47,6 +47,7 @@ Both can be bound to hotkeys in Settings > Hotkeys.
 | Move with subtasks | On | Move nested items as a block with their parent |
 | Placement | Above completed | Where newly completed tasks land: above other completed items, or absolute bottom of the group |
 | Excluded characters | `?!*"lbiSIpcfkwud` | Checkbox characters that count as statuses, not completions (Minimal theme decorators by default) |
+| Completed heading | Completed | Heading text used when collecting completed tasks to the end of the document |
 | Highlight moved task | On | Brief visual flash at the task's new position |
 | Move delay | 0s | Seconds to wait before moving (0 = instant). Uncheck before the delay fires to cancel. |
 

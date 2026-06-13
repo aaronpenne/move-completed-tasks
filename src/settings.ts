@@ -6,6 +6,7 @@ export interface MoveCompletedSettings {
   moveWithSubtasks: boolean;
   placement: 'bottom' | 'above-completed';
   excludedChars: string;
+  completedHeading: string;
   highlightMove: boolean;
   moveDelay: number;
 }
@@ -15,6 +16,7 @@ export const DEFAULT_SETTINGS: MoveCompletedSettings = {
   moveWithSubtasks: true,
   placement: 'above-completed',
   excludedChars: '?!*"lbiSIpcfkwud',
+  completedHeading: 'Completed',
   highlightMove: true,
   moveDelay: 0,
 };
@@ -80,6 +82,21 @@ export class MoveCompletedSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.excludedChars)
           .onChange(async (value) => {
             this.plugin.settings.excludedChars = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Completed heading")
+      .setDesc(
+        "Heading text used when collecting completed tasks to the end of the document"
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("Completed")
+          .setValue(this.plugin.settings.completedHeading)
+          .onChange(async (value) => {
+            this.plugin.settings.completedHeading = value || "Completed";
             await this.plugin.saveSettings();
           })
       );

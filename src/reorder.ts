@@ -2,6 +2,7 @@ export interface ReorderSettings {
   moveWithSubtasks: boolean;
   placement: 'bottom' | 'above-completed';
   excludedChars: string;
+  completedHeading: string;
 }
 
 export interface MoveDescriptor {
@@ -301,7 +302,7 @@ export function collectCompleted(lines: string[], settings: ReorderSettings): st
     remaining.pop();
   }
 
-  return [...remaining, "", "## Completed", "", ...collected];
+  return [...remaining, "", `## ${settings.completedHeading}`, "", ...collected];
 }
 
 export function computeReorder(

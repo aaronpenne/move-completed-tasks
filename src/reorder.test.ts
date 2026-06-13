@@ -12,6 +12,7 @@ const DEFAULT_TEST_SETTINGS: ReorderSettings = {
   moveWithSubtasks: true,
   placement: "bottom",
   excludedChars: '?!*"lbiSIpcfkwud',
+  completedHeading: "Completed",
 };
 
 describe("parseCheckbox", () => {
@@ -734,6 +735,24 @@ describe("collectCompleted", () => {
       "",
       "- [x] first done",
       "- [x] second done",
+    ]);
+  });
+
+  it("uses custom completed heading", () => {
+    const lines = [
+      "- [x] done",
+      "- [ ] pending",
+    ];
+    const settings: ReorderSettings = {
+      ...DEFAULT_TEST_SETTINGS,
+      completedHeading: "Done",
+    };
+    expect(collectCompleted(lines, settings)).toEqual([
+      "- [ ] pending",
+      "",
+      "## Done",
+      "",
+      "- [x] done",
     ]);
   });
 });
