@@ -3,7 +3,7 @@
   "name": "Move Completed Tasks",
   "version": "0.2.3",
   "minAppVersion": "1.5.0",
-  "description": "Automatically move completed tasks to the bottom of their checkbox group",
+  "description": "Automatically move completed tasks to the bottom of their checkbox group.",
   "author": "Aaron Penne",
   "authorUrl": "https://github.com/aaronpenne",
   "isDesktopOnly": false

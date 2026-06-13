@@ -1,4 +1,4 @@
-import { Plugin } from "obsidian";
+import { Editor, Plugin } from "obsidian";
 import { Decoration, DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 import { Annotation, EditorSelection, StateEffect, StateField, Text } from "@codemirror/state";
 import {
@@ -7,6 +7,10 @@ import {
   MoveCompletedSettingTab,
 } from "./settings";
 import { computeReorder, parseCheckbox, isCompleted, partitionGroups, collectCompleted } from "./reorder";
+
+interface EditorWithCm extends Editor {
+  cm: EditorView;
+}
 
 const reorderAnnotation = Annotation.define<boolean>();
 const highlightEffect = StateEffect.define<number>();
@@ -44,7 +48,7 @@ export default class MoveCompletedPlugin extends Plugin {
       id: "move-all-completed-down",
       name: "Move all completed tasks down (scoped)",
       editorCallback: (editor) => {
-        const cmView = (editor as any).cm as EditorView;
+        const cmView = (editor as EditorWithCm).cm;
         if (cmView) this.bulkMoveScoped(cmView);
       },
     });
@@ -53,7 +57,7 @@ export default class MoveCompletedPlugin extends Plugin {
       id: "collect-completed-to-end",
       name: "Collect all completed tasks to end of document",
       editorCallback: (editor) => {
-        const cmView = (editor as any).cm as EditorView;
+        const cmView = (editor as EditorWithCm).cm;
         if (cmView) this.collectToEnd(cmView);
       },
     });
@@ -68,10 +72,8 @@ export default class MoveCompletedPlugin extends Plugin {
   }
 
   private createEditorExtension() {
-    const plugin = this;
-
     return EditorView.updateListener.of((update: ViewUpdate) => {
-      if (!plugin.settings.enabled) return;
+      if (!this.settings.enabled) return;
       if (!update.docChanged) return;
 
       for (const tr of update.transactions) {
@@ -89,11 +91,11 @@ export default class MoveCompletedPlugin extends Plugin {
           if (
             oldParsed.status === " " &&
             newParsed.status !== " " &&
-            !plugin.settings.excludedChars.includes(newParsed.status)
+            !this.settings.excludedChars.includes(newParsed.status)
           ) {
             const lineIndex = newLine.number - 1;
             const view = update.view;
-            queueMicrotask(() => plugin.dispatchReorder(view, lineIndex));
+            queueMicrotask(() => this.dispatchReorder(view, lineIndex));
           }
         });
       }
@@ -160,7 +162,7 @@ export default class MoveCompletedPlugin extends Plugin {
     });
 
     if (this.settings.highlightMove) {
-      setTimeout(() => {
+      window.setTimeout(() => {
         view.dispatch({ effects: [clearHighlightEffect.of(null)] });
       }, 2000);
     }

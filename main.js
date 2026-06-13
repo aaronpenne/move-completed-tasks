@@ -420,9 +420,8 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
     await this.saveData(this.settings);
   }
   createEditorExtension() {
-    const plugin = this;
     return import_view.EditorView.updateListener.of((update) => {
-      if (!plugin.settings.enabled)
+      if (!this.settings.enabled)
         return;
       if (!update.docChanged)
         return;
@@ -436,10 +435,10 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
           const newParsed = parseCheckbox(newLine.text);
           if (!oldParsed || !newParsed)
             return;
-          if (oldParsed.status === " " && newParsed.status !== " " && !plugin.settings.excludedChars.includes(newParsed.status)) {
+          if (oldParsed.status === " " && newParsed.status !== " " && !this.settings.excludedChars.includes(newParsed.status)) {
             const lineIndex = newLine.number - 1;
             const view = update.view;
-            queueMicrotask(() => plugin.dispatchReorder(view, lineIndex));
+            queueMicrotask(() => this.dispatchReorder(view, lineIndex));
           }
         });
       }
@@ -496,7 +495,7 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
       effects
     });
     if (this.settings.highlightMove) {
-      setTimeout(() => {
+      window.setTimeout(() => {
         view.dispatch({ effects: [clearHighlightEffect.of(null)] });
       }, 2e3);
     }
