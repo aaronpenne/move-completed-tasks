@@ -33,6 +33,7 @@ var DEFAULT_SETTINGS = {
   moveWithSubtasks: true,
   placement: "above-completed",
   excludedChars: '?!*"lbiSIpcfkwud',
+  completedHeading: "Completed",
   highlightMove: true,
   moveDelay: 0
 };
@@ -67,6 +68,14 @@ var MoveCompletedSettingTab = class extends import_obsidian.PluginSettingTab {
     ).addText(
       (text) => text.setPlaceholder('?!*"lbiSIpcfkwud').setValue(this.plugin.settings.excludedChars).onChange(async (value) => {
         this.plugin.settings.excludedChars = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Completed heading").setDesc(
+      "Heading text used when collecting completed tasks to the end of the document"
+    ).addText(
+      (text) => text.setPlaceholder("Completed").setValue(this.plugin.settings.completedHeading).onChange(async (value) => {
+        this.plugin.settings.completedHeading = value || "Completed";
         await this.plugin.saveSettings();
       })
     );
@@ -340,7 +349,7 @@ function collectCompleted(lines, settings) {
   while (remaining.length > 0 && remaining[remaining.length - 1].trim() === "") {
     remaining.pop();
   }
-  return [...remaining, "", "## Completed", "", ...collected];
+  return [...remaining, "", `## ${settings.completedHeading}`, "", ...collected];
 }
 function computeReorder(docLines, completedLineIndex, settings) {
   const line = docLines[completedLineIndex];

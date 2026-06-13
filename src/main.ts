@@ -83,6 +83,7 @@ export default class MoveCompletedPlugin extends Plugin {
     return EditorView.updateListener.of((update: ViewUpdate) => {
       if (!this.settings.enabled) return;
       if (!update.docChanged) return;
+      if (this.isNoteDisabled(update.view)) return;
 
       for (const tr of update.transactions) {
         if (tr.annotation(reorderAnnotation)) continue;
@@ -147,8 +148,21 @@ export default class MoveCompletedPlugin extends Plugin {
     return lines;
   }
 
+  private isNoteDisabled(view: EditorView): boolean {
+    const doc = view.state.doc;
+    if (doc.lines < 3) return false;
+    if (doc.line(1).text !== "---") return false;
+    for (let i = 2; i <= doc.lines; i++) {
+      const text = doc.line(i).text;
+      if (text === "---") return false;
+      if (/^move-completed:\s*false\s*$/.test(text)) return true;
+    }
+    return false;
+  }
+
   private dispatchReorder(view: EditorView, lineIndex: number) {
     if (!this.settings.enabled) return;
+    if (this.isNoteDisabled(view)) return;
 
     const doc = view.state.doc;
     const docLines = this.getDocLines(view);
@@ -160,11 +174,7 @@ export default class MoveCompletedPlugin extends Plugin {
     if (!parsed) return;
     if (!isCompleted(parsed.status, this.settings.excludedChars)) return;
 
-    const result = computeReorder(docLines, lineIndex, {
-      moveWithSubtasks: this.settings.moveWithSubtasks,
-      placement: this.settings.placement,
-      excludedChars: this.settings.excludedChars,
-    });
+    const result = computeReorder(docLines, lineIndex, this.settings);
 
     if (!result) return;
 
@@ -207,6 +217,7 @@ export default class MoveCompletedPlugin extends Plugin {
   private bulkMoveScoped(view: EditorView) {
     const doc = view.state.doc;
     const lines = this.getDocLines(view);
+    if (this.isNoteDisabled(view)) return;
     const result = partitionGroups(lines, this.settings);
     const newText = result.join("\n");
     if (newText === doc.toString()) return;
@@ -220,6 +231,7 @@ export default class MoveCompletedPlugin extends Plugin {
   private collectToEnd(view: EditorView) {
     const doc = view.state.doc;
     const lines = this.getDocLines(view);
+    if (this.isNoteDisabled(view)) return;
     const result = collectCompleted(lines, this.settings);
     const newText = result.join("\n");
     if (newText === doc.toString()) return;

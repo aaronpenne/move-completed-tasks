@@ -6,6 +6,7 @@ import {
   isInsideFence,
   getIndentLevel,
   isGroupBoundary,
+  hasOpenParent,
 } from "./reorder";
 
 const DEFAULT_TEST_SETTINGS: ReorderSettings = {
@@ -13,6 +14,8 @@ const DEFAULT_TEST_SETTINGS: ReorderSettings = {
   placement: "bottom",
   excludedChars: '?!*"lbiSIpcfkwud',
   completedHeading: "Completed",
+  skipSubtasksWithOpenParent: false,
+  sectionAwareCollection: false,
 };
 
 describe("parseCheckbox", () => {
@@ -751,6 +754,177 @@ describe("collectCompleted", () => {
       "- [ ] pending",
       "",
       "## Done",
+      "",
+      "- [x] done",
+    ]);
+  });
+});
+
+describe("hasOpenParent", () => {
+  it("returns false for top-level task", () => {
+    const lines = ["- [x] done"];
+    expect(hasOpenParent(lines, 0, DEFAULT_TEST_SETTINGS.excludedChars)).toBe(false);
+  });
+
+  it("returns true when parent is open", () => {
+    const lines = [
+      "- [ ] parent",
+      "  - [x] child",
+    ];
+    expect(hasOpenParent(lines, 1, DEFAULT_TEST_SETTINGS.excludedChars)).toBe(true);
+  });
+
+  it("returns false when parent is completed", () => {
+    const lines = [
+      "- [x] parent",
+      "  - [x] child",
+    ];
+    expect(hasOpenParent(lines, 1, DEFAULT_TEST_SETTINGS.excludedChars)).toBe(false);
+  });
+
+  it("returns true for deeply nested with open ancestor", () => {
+    const lines = [
+      "- [ ] grandparent",
+      "  - [x] parent",
+      "    - [x] child",
+    ];
+    expect(hasOpenParent(lines, 2, DEFAULT_TEST_SETTINGS.excludedChars)).toBe(false);
+  });
+});
+
+describe("skipSubtasksWithOpenParent", () => {
+  const skipSettings: ReorderSettings = {
+    ...DEFAULT_TEST_SETTINGS,
+    skipSubtasksWithOpenParent: true,
+  };
+
+  it("computeReorder skips completed subtask with open parent", () => {
+    const lines = [
+      "- [ ] parent",
+      "  - [x] child",
+      "  - [ ] sibling",
+    ];
+    const result = computeReorder(lines, 1, skipSettings);
+    expect(result).toBeNull();
+  });
+
+  it("computeReorder moves completed subtask with completed parent", () => {
+    const lines = [
+      "- [x] parent",
+      "  - [x] child",
+      "  - [ ] sibling",
+    ];
+    const result = computeReorder(lines, 1, skipSettings);
+    expect(result).not.toBeNull();
+  });
+
+  it("collectCompleted skips subtask with open parent", () => {
+    const lines = [
+      "- [ ] parent",
+      "  - [x] child",
+      "- [x] top-level done",
+    ];
+    expect(collectCompleted(lines, skipSettings)).toEqual([
+      "- [ ] parent",
+      "  - [x] child",
+      "",
+      "## Completed",
+      "",
+      "- [x] top-level done",
+    ]);
+  });
+
+  it("partitionGroups preserves subtask order under open parent", () => {
+    const lines = [
+      "- [ ] parent",
+      "  - [x] done child",
+      "  - [ ] open child",
+    ];
+    expect(partitionGroups(lines, skipSettings)).toEqual([
+      "- [ ] parent",
+      "  - [x] done child",
+      "  - [ ] open child",
+    ]);
+  });
+});
+
+describe("sectionAwareCollection", () => {
+  const sectionSettings: ReorderSettings = {
+    ...DEFAULT_TEST_SETTINGS,
+    sectionAwareCollection: true,
+  };
+
+  it("groups collected tasks under their source headings", () => {
+    const lines = [
+      "## Shopping",
+      "- [x] milk",
+      "- [ ] bread",
+      "## Work",
+      "- [x] email",
+      "- [ ] report",
+    ];
+    expect(collectCompleted(lines, sectionSettings)).toEqual([
+      "## Shopping",
+      "- [ ] bread",
+      "## Work",
+      "- [ ] report",
+      "",
+      "## Completed",
+      "",
+      "### Shopping",
+      "- [x] milk",
+      "### Work",
+      "- [x] email",
+    ]);
+  });
+
+  it("bumps heading level by one", () => {
+    const lines = [
+      "### Deep section",
+      "- [x] done",
+      "- [ ] pending",
+    ];
+    expect(collectCompleted(lines, sectionSettings)).toEqual([
+      "### Deep section",
+      "- [ ] pending",
+      "",
+      "## Completed",
+      "",
+      "#### Deep section",
+      "- [x] done",
+    ]);
+  });
+
+  it("puts unsectioned tasks before sectioned ones", () => {
+    const lines = [
+      "- [x] no section",
+      "## Section A",
+      "- [x] in section",
+      "- [ ] pending",
+    ];
+    expect(collectCompleted(lines, sectionSettings)).toEqual([
+      "## Section A",
+      "- [ ] pending",
+      "",
+      "## Completed",
+      "",
+      "- [x] no section",
+      "### Section A",
+      "- [x] in section",
+    ]);
+  });
+
+  it("falls back to flat collection when disabled", () => {
+    const lines = [
+      "## Section",
+      "- [x] done",
+      "- [ ] pending",
+    ];
+    expect(collectCompleted(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "## Section",
+      "- [ ] pending",
+      "",
+      "## Completed",
       "",
       "- [x] done",
     ]);

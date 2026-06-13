@@ -3,6 +3,8 @@ export interface ReorderSettings {
   placement: 'bottom' | 'above-completed';
   excludedChars: string;
   completedHeading: string;
+  skipSubtasksWithOpenParent: boolean;
+  sectionAwareCollection: boolean;
 }
 
 export interface MoveDescriptor {
@@ -53,6 +55,27 @@ export function isInsideFence(docLines: string[], lineIndex: number): boolean {
     }
   }
   return insideFence;
+}
+
+export function hasOpenParent(docLines: string[], lineIndex: number, excludedChars: string): boolean {
+  const lineParsed = parseCheckbox(docLines[lineIndex]);
+  if (!lineParsed) return false;
+  const lineIndent = getIndentLevel(lineParsed.indent);
+  if (lineIndent === 0) return false;
+
+  for (let i = lineIndex - 1; i >= 0; i--) {
+    const line = docLines[i];
+    const p = parseCheckbox(line);
+    if (!p) {
+      if (line.trim() === "" || isGroupBoundary(line)) return false;
+      continue;
+    }
+    const parentIndent = getIndentLevel(p.indent);
+    if (parentIndent < lineIndent) {
+      return !isCompleted(p.status, excludedChars);
+    }
+  }
+  return false;
 }
 
 interface MovedBlock {
@@ -253,32 +276,47 @@ export function partitionGroups(lines: string[], settings: ReorderSettings): str
       }
     }
 
-    const emit = (blocks: string[][]) => {
+    const emit = (blocks: string[][], parentCompleted: boolean) => {
       for (const block of blocks) {
         output.push(block[0]);
         if (block.length > 1) {
           const subtaskLines = block.slice(1);
-          const partitioned = partitionGroups(subtaskLines, settings);
-          output.push(...partitioned);
+          if (settings.skipSubtasksWithOpenParent && !parentCompleted) {
+            output.push(...subtaskLines);
+          } else {
+            const partitioned = partitionGroups(subtaskLines, settings);
+            output.push(...partitioned);
+          }
         }
       }
     };
 
-    emit(incomplete);
-    emit(completed);
+    emit(incomplete, false);
+    emit(completed, true);
   }
 
   return output;
 }
 
 export function collectCompleted(lines: string[], settings: ReorderSettings): string[] {
-  const collected: string[] = [];
   const remaining: string[] = [];
+  let currentHeading: string | null = null;
+
+  // When section-aware, group collected tasks by their source heading
+  const sectionMap = new Map<string, string[]>();
+  const sectionOrder: string[] = [];
+  const flatCollected: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
+    const headingMatch = lines[i].match(/^(#{1,6})\s+(.*)/);
+    if (headingMatch) {
+      currentHeading = lines[i];
+    }
+
     const parsed = parseCheckbox(lines[i]);
-    if (parsed && isCompleted(parsed.status, settings.excludedChars)) {
-      collected.push(lines[i]);
+    if (parsed && isCompleted(parsed.status, settings.excludedChars) &&
+        !(settings.skipSubtasksWithOpenParent && hasOpenParent(lines, i, settings.excludedChars))) {
+      const taskLines: string[] = [lines[i]];
       if (settings.moveWithSubtasks) {
         const baseLevel = parsed.indent.length;
         let j = i + 1;
@@ -286,23 +324,53 @@ export function collectCompleted(lines: string[], settings: ReorderSettings): st
           const lineIndent = lines[j].match(/^(\s*)/)?.[1] ?? "";
           if (lineIndent.length <= baseLevel && lines[j].trim() !== "") break;
           if (lines[j].trim() === "") break;
-          collected.push(lines[j]);
+          taskLines.push(lines[j]);
           j++;
         }
         i = j - 1;
+      }
+
+      if (settings.sectionAwareCollection && currentHeading) {
+        const key = currentHeading;
+        if (!sectionMap.has(key)) {
+          sectionMap.set(key, []);
+          sectionOrder.push(key);
+        }
+        sectionMap.get(key)!.push(...taskLines);
+      } else {
+        flatCollected.push(...taskLines);
       }
     } else {
       remaining.push(lines[i]);
     }
   }
 
-  if (collected.length === 0) return lines;
+  const hasCollected = flatCollected.length > 0 || sectionMap.size > 0;
+  if (!hasCollected) return lines;
 
   while (remaining.length > 0 && remaining[remaining.length - 1].trim() === "") {
     remaining.pop();
   }
 
-  return [...remaining, "", `## ${settings.completedHeading}`, "", ...collected];
+  const result = [...remaining, "", `## ${settings.completedHeading}`, ""];
+
+  if (settings.sectionAwareCollection && sectionMap.size > 0) {
+    // Emit flat (unsectioned) tasks first
+    result.push(...flatCollected);
+    // Then emit each section with its heading bumped one level
+    for (const heading of sectionOrder) {
+      const match = heading.match(/^(#{1,6})\s+(.*)/);
+      if (match) {
+        const hashes = match[1].length < 6 ? "#".repeat(match[1].length + 1) : match[1];
+        result.push(`${hashes} ${match[2]}`);
+      }
+      result.push(...sectionMap.get(heading)!);
+    }
+  } else {
+    result.push(...flatCollected);
+  }
+
+  return result;
 }
 
 export function computeReorder(
@@ -318,6 +386,7 @@ export function computeReorder(
   const parsed = parseCheckbox(line);
   if (!parsed) return null;
   if (!isCompleted(parsed.status, settings.excludedChars)) return null;
+  if (settings.skipSubtasksWithOpenParent && hasOpenParent(docLines, completedLineIndex, settings.excludedChars)) return null;
 
   const targetIndentLevel = getIndentLevel(parsed.indent);
 

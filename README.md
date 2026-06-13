@@ -46,11 +46,23 @@ Both can be bound to hotkeys in Settings > Hotkeys.
 |--------|---------|-------------|
 | Enable | On | Master toggle for auto-move on check |
 | Move with subtasks | On | Move nested items as a block with their parent |
+| Skip subtasks with open parent | Off | Don't move a completed subtask if its parent task is still open |
 | Placement | Above completed | Where newly completed tasks land: above other completed items, or absolute bottom of the group |
 | Excluded characters | `?!*"lbiSIpcfkwud` | Checkbox characters that count as statuses, not completions (Minimal theme decorators by default) |
 | Completed heading | Completed | Heading text used when collecting completed tasks to the end of the document |
+| Section-aware collection | Off | When collecting, group completed tasks under sub-headings that mirror the original document structure |
 | Highlight moved task | On | Brief visual flash at the task's new position |
 | Move delay | 0s | Seconds to wait before moving (0 = instant). Uncheck before the delay fires to cancel. |
+
+## Per-note opt-out
+
+Add `move-completed: false` to a note's frontmatter to disable all auto-move and bulk commands for that note:
+
+```yaml
+---
+move-completed: false
+---
+```
 
 ## Theme compatibility
 

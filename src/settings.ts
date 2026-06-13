@@ -7,6 +7,8 @@ export interface MoveCompletedSettings {
   placement: 'bottom' | 'above-completed';
   excludedChars: string;
   completedHeading: string;
+  skipSubtasksWithOpenParent: boolean;
+  sectionAwareCollection: boolean;
   highlightMove: boolean;
   moveDelay: number;
 }
@@ -17,6 +19,8 @@ export const DEFAULT_SETTINGS: MoveCompletedSettings = {
   placement: 'above-completed',
   excludedChars: '?!*"lbiSIpcfkwud',
   completedHeading: 'Completed',
+  skipSubtasksWithOpenParent: false,
+  sectionAwareCollection: false,
   highlightMove: true,
   moveDelay: 0,
 };
@@ -53,6 +57,18 @@ export class MoveCompletedSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.moveWithSubtasks)
           .onChange(async (value) => {
             this.plugin.settings.moveWithSubtasks = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Skip subtasks with open parent")
+      .setDesc("Don't move a completed subtask if its parent task is still open")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.skipSubtasksWithOpenParent)
+          .onChange(async (value) => {
+            this.plugin.settings.skipSubtasksWithOpenParent = value;
             await this.plugin.saveSettings();
           })
       );
@@ -97,6 +113,18 @@ export class MoveCompletedSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.completedHeading)
           .onChange(async (value) => {
             this.plugin.settings.completedHeading = value || "Completed";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Section-aware collection")
+      .setDesc("When collecting completed tasks, group them under sub-headings that mirror the original document structure")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.sectionAwareCollection)
+          .onChange(async (value) => {
+            this.plugin.settings.sectionAwareCollection = value;
             await this.plugin.saveSettings();
           })
       );
