@@ -8,11 +8,12 @@ An [Obsidian](https://obsidian.md) plugin that moves completed tasks to the bott
 
 ![Before and after](imgs/before_and_after.png)
 
-It does three things:
+It does two things:
 
 1. When you check a task, it drops to the bottom of its list automatically. A highlight flashes so you can see where it went. Ctrl+Z to undo.
 2. Two commands let you sort or collect completed tasks across the whole document, if you have a page that's already messy. Both are bindable to hotkeys.
-3. Settings for delay before moving, placement within the list, which checkbox characters count as "done", subtask handling, etc.
+
+Delay, placement, subtask handling, which checkbox characters count as "done", and more are all configurable.
 
 ## Install
 
