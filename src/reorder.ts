@@ -11,7 +11,7 @@ export interface MoveDescriptor {
   lines: string[];
 }
 
-const CHECKBOX_RE = /^(\s*)([-*+])\s+\[(.)\]\s/;
+const CHECKBOX_RE = /^(\s*)([-*+]|\d+\.)\s+\[(.)\]\s/;
 const HEADING_RE = /^#{1,6}\s/;
 const FENCE_RE = /^(\s*)(```|~~~)/;
 const BLOCKQUOTE_RE = /^(\s*>)/;

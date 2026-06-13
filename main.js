@@ -33,7 +33,8 @@ var DEFAULT_SETTINGS = {
   moveWithSubtasks: true,
   placement: "above-completed",
   excludedChars: '?!*"lbiSIpcfkwud',
-  highlightMove: true
+  highlightMove: true,
+  moveDelay: 0
 };
 var MoveCompletedSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
@@ -75,11 +76,19 @@ var MoveCompletedSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian.Setting(containerEl).setName("Move delay (seconds)").setDesc(
+      "Wait this many seconds before moving a completed task. Set to 0 for instant. Unchecking before the delay cancels the move."
+    ).addSlider(
+      (slider) => slider.setLimits(0, 10, 1).setValue(this.plugin.settings.moveDelay).setDynamicTooltip().onChange(async (value) => {
+        this.plugin.settings.moveDelay = value;
+        await this.plugin.saveSettings();
+      })
+    );
   }
 };
 
 // src/reorder.ts
-var CHECKBOX_RE = /^(\s*)([-*+])\s+\[(.)\]\s/;
+var CHECKBOX_RE = /^(\s*)([-*+]|\d+\.)\s+\[(.)\]\s/;
 var HEADING_RE = /^#{1,6}\s/;
 var FENCE_RE = /^(\s*)(```|~~~)/;
 var BLOCKQUOTE_RE = /^(\s*>)/;
@@ -389,6 +398,7 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
+    this.pendingTimers = /* @__PURE__ */ new Map();
   }
   async onload() {
     await this.loadSettings();
@@ -413,6 +423,12 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
       }
     });
   }
+  onunload() {
+    for (const timer of this.pendingTimers.values()) {
+      window.clearTimeout(timer);
+    }
+    this.pendingTimers.clear();
+  }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
   }
@@ -435,14 +451,36 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
           const newParsed = parseCheckbox(newLine.text);
           if (!oldParsed || !newParsed)
             return;
+          const lineIndex = newLine.number - 1;
           if (oldParsed.status === " " && newParsed.status !== " " && !this.settings.excludedChars.includes(newParsed.status)) {
-            const lineIndex = newLine.number - 1;
             const view = update.view;
-            queueMicrotask(() => this.dispatchReorder(view, lineIndex));
+            this.scheduleReorder(view, lineIndex);
+          } else if (oldParsed.status !== " " && newParsed.status === " ") {
+            this.cancelPending(lineIndex);
           }
         });
       }
     });
+  }
+  scheduleReorder(view, lineIndex) {
+    this.cancelPending(lineIndex);
+    const delay = this.settings.moveDelay * 1e3;
+    if (delay <= 0) {
+      queueMicrotask(() => this.dispatchReorder(view, lineIndex));
+    } else {
+      const timer = window.setTimeout(() => {
+        this.pendingTimers.delete(lineIndex);
+        this.dispatchReorder(view, lineIndex);
+      }, delay);
+      this.pendingTimers.set(lineIndex, timer);
+    }
+  }
+  cancelPending(lineIndex) {
+    const timer = this.pendingTimers.get(lineIndex);
+    if (timer !== void 0) {
+      window.clearTimeout(timer);
+      this.pendingTimers.delete(lineIndex);
+    }
   }
   getDocLines(view) {
     const doc = view.state.doc;

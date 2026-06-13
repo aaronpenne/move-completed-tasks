@@ -33,6 +33,25 @@ describe("parseCheckbox", () => {
     expect(result).not.toBeNull();
   });
 
+  it("recognizes 1. [x] ordered list checkbox", () => {
+    const lines = ["1. [x] task one", "2. [ ] task two", "3. [ ] task three"];
+    const result = computeReorder(lines, 0, DEFAULT_TEST_SETTINGS);
+    expect(result).not.toBeNull();
+  });
+
+  it("recognizes multi-digit ordered list 10. [X] checkbox", () => {
+    const lines = ["10. [X] done", "11. [ ] pending"];
+    const result = computeReorder(lines, 0, DEFAULT_TEST_SETTINGS);
+    expect(result).not.toBeNull();
+  });
+
+  it("moves ordered list completed task to bottom", () => {
+    const lines = ["1. [x] done", "2. [ ] pending", "3. [ ] also pending"];
+    const result = computeReorder(lines, 0, DEFAULT_TEST_SETTINGS);
+    expect(result).not.toBeNull();
+    expect(result!.insertAt).toBe(2);
+  });
+
   it("does not trigger for excluded decorator characters", () => {
     const excluded = '?!*"lbiSIpcfkwud';
     for (const ch of excluded) {

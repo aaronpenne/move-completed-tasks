@@ -38,6 +38,7 @@ const highlightField = StateField.define<DecorationSet>({
 
 export default class MoveCompletedPlugin extends Plugin {
   settings: MoveCompletedSettings = DEFAULT_SETTINGS;
+  private pendingTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
   async onload() {
     await this.loadSettings();
@@ -61,6 +62,13 @@ export default class MoveCompletedPlugin extends Plugin {
         if (cmView) this.collectToEnd(cmView);
       },
     });
+  }
+
+  onunload() {
+    for (const timer of this.pendingTimers.values()) {
+      window.clearTimeout(timer);
+    }
+    this.pendingTimers.clear();
   }
 
   async loadSettings() {
@@ -88,18 +96,46 @@ export default class MoveCompletedPlugin extends Plugin {
 
           if (!oldParsed || !newParsed) return;
 
+          const lineIndex = newLine.number - 1;
+
           if (
             oldParsed.status === " " &&
             newParsed.status !== " " &&
             !this.settings.excludedChars.includes(newParsed.status)
           ) {
-            const lineIndex = newLine.number - 1;
             const view = update.view;
-            queueMicrotask(() => this.dispatchReorder(view, lineIndex));
+            this.scheduleReorder(view, lineIndex);
+          } else if (
+            oldParsed.status !== " " &&
+            newParsed.status === " "
+          ) {
+            this.cancelPending(lineIndex);
           }
         });
       }
     });
+  }
+
+  private scheduleReorder(view: EditorView, lineIndex: number) {
+    this.cancelPending(lineIndex);
+    const delay = this.settings.moveDelay * 1000;
+    if (delay <= 0) {
+      queueMicrotask(() => this.dispatchReorder(view, lineIndex));
+    } else {
+      const timer = window.setTimeout(() => {
+        this.pendingTimers.delete(lineIndex);
+        this.dispatchReorder(view, lineIndex);
+      }, delay);
+      this.pendingTimers.set(lineIndex, timer);
+    }
+  }
+
+  private cancelPending(lineIndex: number) {
+    const timer = this.pendingTimers.get(lineIndex);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      this.pendingTimers.delete(lineIndex);
+    }
   }
 
   private getDocLines(view: EditorView): string[] {
