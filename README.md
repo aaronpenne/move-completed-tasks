@@ -60,11 +60,17 @@ Works with any theme that uses standard markdown checkboxes. Themes with alterna
 - [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks): moves happen after the Tasks plugin appends done-dates, so timestamps are preserved
 - [Dataview](https://github.com/blacksmithgu/obsidian-dataview): no conflicts (Dataview reads, this plugin writes)
 
-## Related
+## Why this plugin
+
+Apps like Apple Notes, Noteplan, and Todoist automatically sink completed tasks to the bottom of their list the moment you check them off. This plugin brings that same behavior to Obsidian. It does one thing and stays out of the way.
+
+Several other plugins overlap in scope but solve different problems:
 
 - [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) — full task management with dates, recurrence, and queries
 - [Completed Task Display](https://github.com/heliostatic/completed-task-display) — hides completed tasks via CSS rather than moving them
 - [Todo Sort](https://github.com/ryangomba/obsidian-todo-sort) — sorts tasks on file open rather than on completion
+- [Task Mover](https://github.com/thomascherickal/obsidian-task-mover) — moves completed tasks to a separate file or heading
+- [Move Completed Tasks Down](https://github.com/optimummost001/move-completed-tasks-down) — similar concept with a fixed 5-second delay and file-level diffing
 
 ## License
 
