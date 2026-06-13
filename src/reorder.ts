@@ -44,7 +44,7 @@ export function isCompleted(status: string, excludedChars: string): boolean {
   return true;
 }
 
-function isInsideFence(docLines: string[], lineIndex: number): boolean {
+export function isInsideFence(docLines: string[], lineIndex: number): boolean {
   let insideFence = false;
   for (let i = 0; i < lineIndex; i++) {
     if (FENCE_RE.test(docLines[i])) {
@@ -184,6 +184,124 @@ function computeInsertionPoint(
   }
 
   return group[insertIdx].blockEnd;
+}
+
+export function partitionGroups(lines: string[], settings: ReorderSettings): string[] {
+  const output: string[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const parsed = parseCheckbox(lines[i]);
+    if (!parsed) {
+      output.push(lines[i]);
+      i++;
+      continue;
+    }
+
+    const groupIndent = parsed.indent.length;
+    const incomplete: string[][] = [];
+    const completed: string[][] = [];
+
+    while (i < lines.length) {
+      const p = parseCheckbox(lines[i]);
+
+      if (!p) {
+        const lineIndent = (lines[i].match(/^(\s*)/)?.[1] ?? "").length;
+        if (lineIndent > groupIndent) {
+          const lastBlock =
+            (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) ||
+            (completed.length > 0 ? completed[completed.length - 1] : null);
+          if (lastBlock) lastBlock.push(lines[i]);
+          else output.push(lines[i]);
+          i++;
+          continue;
+        }
+        break;
+      }
+
+      if (p.indent.length < groupIndent) {
+        break;
+      }
+
+      if (p.indent.length > groupIndent) {
+        const lastBlock =
+          (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) ||
+          (completed.length > 0 ? completed[completed.length - 1] : null);
+        if (lastBlock) lastBlock.push(lines[i]);
+        else incomplete.push([lines[i]]);
+        i++;
+        continue;
+      }
+
+      const block = [lines[i]];
+      const isComp = isCompleted(p.status, settings.excludedChars);
+      i++;
+
+      while (i < lines.length) {
+        if (lines[i].trim() === "") break;
+        const subIndent = (lines[i].match(/^(\s*)/)?.[1] ?? "").length;
+        if (subIndent <= groupIndent) break;
+        block.push(lines[i]);
+        i++;
+      }
+
+      if (isComp) {
+        completed.push(block);
+      } else {
+        incomplete.push(block);
+      }
+    }
+
+    const emit = (blocks: string[][]) => {
+      for (const block of blocks) {
+        output.push(block[0]);
+        if (block.length > 1) {
+          const subtaskLines = block.slice(1);
+          const partitioned = partitionGroups(subtaskLines, settings);
+          output.push(...partitioned);
+        }
+      }
+    };
+
+    emit(incomplete);
+    emit(completed);
+  }
+
+  return output;
+}
+
+export function collectCompleted(lines: string[], settings: ReorderSettings): string[] {
+  const collected: string[] = [];
+  const remaining: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const parsed = parseCheckbox(lines[i]);
+    if (parsed && isCompleted(parsed.status, settings.excludedChars)) {
+      collected.push(lines[i]);
+      if (settings.moveWithSubtasks) {
+        const baseLevel = parsed.indent.length;
+        let j = i + 1;
+        while (j < lines.length) {
+          const lineIndent = lines[j].match(/^(\s*)/)?.[1] ?? "";
+          if (lineIndent.length <= baseLevel && lines[j].trim() !== "") break;
+          if (lines[j].trim() === "") break;
+          collected.push(lines[j]);
+          j++;
+        }
+        i = j - 1;
+      }
+    } else {
+      remaining.push(lines[i]);
+    }
+  }
+
+  if (collected.length === 0) return lines;
+
+  while (remaining.length > 0 && remaining[remaining.length - 1].trim() === "") {
+    remaining.pop();
+  }
+
+  return [...remaining, "", "## Completed", "", ...collected];
 }
 
 export function computeReorder(

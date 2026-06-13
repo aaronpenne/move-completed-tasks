@@ -40,8 +40,6 @@ Both commands can be bound to hotkeys in Settings > Hotkeys.
 
 ## Settings
 
-![Settings](imgs/settings.png)
-
 | Option | Default | Description |
 |--------|---------|-------------|
 | Enable | On | Master toggle for the auto-move on check |

@@ -226,6 +226,113 @@ function computeInsertionPoint(docLines, group, _targetIndentLevel, settings) {
   }
   return group[insertIdx].blockEnd;
 }
+function partitionGroups(lines, settings) {
+  var _a, _b, _c, _d;
+  const output = [];
+  let i = 0;
+  while (i < lines.length) {
+    const parsed = parseCheckbox(lines[i]);
+    if (!parsed) {
+      output.push(lines[i]);
+      i++;
+      continue;
+    }
+    const groupIndent = parsed.indent.length;
+    const incomplete = [];
+    const completed = [];
+    while (i < lines.length) {
+      const p = parseCheckbox(lines[i]);
+      if (!p) {
+        const lineIndent = ((_b = (_a = lines[i].match(/^(\s*)/)) == null ? void 0 : _a[1]) != null ? _b : "").length;
+        if (lineIndent > groupIndent) {
+          const lastBlock = (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) || (completed.length > 0 ? completed[completed.length - 1] : null);
+          if (lastBlock)
+            lastBlock.push(lines[i]);
+          else
+            output.push(lines[i]);
+          i++;
+          continue;
+        }
+        break;
+      }
+      if (p.indent.length < groupIndent) {
+        break;
+      }
+      if (p.indent.length > groupIndent) {
+        const lastBlock = (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) || (completed.length > 0 ? completed[completed.length - 1] : null);
+        if (lastBlock)
+          lastBlock.push(lines[i]);
+        else
+          incomplete.push([lines[i]]);
+        i++;
+        continue;
+      }
+      const block = [lines[i]];
+      const isComp = isCompleted(p.status, settings.excludedChars);
+      i++;
+      while (i < lines.length) {
+        if (lines[i].trim() === "")
+          break;
+        const subIndent = ((_d = (_c = lines[i].match(/^(\s*)/)) == null ? void 0 : _c[1]) != null ? _d : "").length;
+        if (subIndent <= groupIndent)
+          break;
+        block.push(lines[i]);
+        i++;
+      }
+      if (isComp) {
+        completed.push(block);
+      } else {
+        incomplete.push(block);
+      }
+    }
+    const emit = (blocks) => {
+      for (const block of blocks) {
+        output.push(block[0]);
+        if (block.length > 1) {
+          const subtaskLines = block.slice(1);
+          const partitioned = partitionGroups(subtaskLines, settings);
+          output.push(...partitioned);
+        }
+      }
+    };
+    emit(incomplete);
+    emit(completed);
+  }
+  return output;
+}
+function collectCompleted(lines, settings) {
+  var _a, _b;
+  const collected = [];
+  const remaining = [];
+  for (let i = 0; i < lines.length; i++) {
+    const parsed = parseCheckbox(lines[i]);
+    if (parsed && isCompleted(parsed.status, settings.excludedChars)) {
+      collected.push(lines[i]);
+      if (settings.moveWithSubtasks) {
+        const baseLevel = parsed.indent.length;
+        let j = i + 1;
+        while (j < lines.length) {
+          const lineIndent = (_b = (_a = lines[j].match(/^(\s*)/)) == null ? void 0 : _a[1]) != null ? _b : "";
+          if (lineIndent.length <= baseLevel && lines[j].trim() !== "")
+            break;
+          if (lines[j].trim() === "")
+            break;
+          collected.push(lines[j]);
+          j++;
+        }
+        i = j - 1;
+      }
+    } else {
+      remaining.push(lines[i]);
+    }
+  }
+  if (collected.length === 0)
+    return lines;
+  while (remaining.length > 0 && remaining[remaining.length - 1].trim() === "") {
+    remaining.pop();
+  }
+  return [...remaining, "", "## Completed", "", ...collected];
+}
 function computeReorder(docLines, completedLineIndex, settings) {
   const line = docLines[completedLineIndex];
   if (line === void 0)
@@ -278,7 +385,6 @@ var highlightField = import_state.StateField.define({
   },
   provide: (f) => import_view.EditorView.decorations.from(f)
 });
-var CHECKBOX_RE2 = /^(\s*)([-*+])\s+\[(.)\]\s/;
 var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
   constructor() {
     super(...arguments);
@@ -326,13 +432,11 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
         tr.changes.iterChanges((fromA, _toA, fromB) => {
           const oldLine = update.startState.doc.lineAt(fromA);
           const newLine = update.state.doc.lineAt(fromB);
-          const oldMatch = oldLine.text.match(CHECKBOX_RE2);
-          const newMatch = newLine.text.match(CHECKBOX_RE2);
-          if (!oldMatch || !newMatch)
+          const oldParsed = parseCheckbox(oldLine.text);
+          const newParsed = parseCheckbox(newLine.text);
+          if (!oldParsed || !newParsed)
             return;
-          const oldStatus = oldMatch[3];
-          const newStatus = newMatch[3];
-          if (oldStatus === " " && newStatus !== " " && !plugin.settings.excludedChars.includes(newStatus)) {
+          if (oldParsed.status === " " && newParsed.status !== " " && !plugin.settings.excludedChars.includes(newParsed.status)) {
             const lineIndex = newLine.number - 1;
             const view = update.view;
             queueMicrotask(() => plugin.dispatchReorder(view, lineIndex));
@@ -341,14 +445,19 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
       }
     });
   }
+  getDocLines(view) {
+    const doc = view.state.doc;
+    const lines = [];
+    for (let i = 1; i <= doc.lines; i++) {
+      lines.push(doc.line(i).text);
+    }
+    return lines;
+  }
   dispatchReorder(view, lineIndex) {
     if (!this.settings.enabled)
       return;
     const doc = view.state.doc;
-    const docLines = [];
-    for (let i = 1; i <= doc.lines; i++) {
-      docLines.push(doc.line(i).text);
-    }
+    const docLines = this.getDocLines(view);
     const currentLine = docLines[lineIndex];
     if (!currentLine)
       return;
@@ -394,11 +503,8 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
   }
   bulkMoveScoped(view) {
     const doc = view.state.doc;
-    const docLines = [];
-    for (let i = 1; i <= doc.lines; i++) {
-      docLines.push(doc.line(i).text);
-    }
-    const result = this.partitionAllGroups(docLines);
+    const lines = this.getDocLines(view);
+    const result = partitionGroups(lines, this.settings);
     const newText = result.join("\n");
     if (newText === doc.toString())
       return;
@@ -407,119 +513,13 @@ var MoveCompletedPlugin = class extends import_obsidian2.Plugin {
       annotations: [reorderAnnotation.of(true)]
     });
   }
-  partitionAllGroups(docLines) {
-    var _a, _b, _c, _d;
-    const output = [];
-    let i = 0;
-    while (i < docLines.length) {
-      const parsed = parseCheckbox(docLines[i]);
-      if (!parsed) {
-        output.push(docLines[i]);
-        i++;
-        continue;
-      }
-      const groupIndent = parsed.indent.length;
-      const incomplete = [];
-      const completed = [];
-      while (i < docLines.length) {
-        const p = parseCheckbox(docLines[i]);
-        if (!p) {
-          const lineIndent = ((_b = (_a = docLines[i].match(/^(\s*)/)) == null ? void 0 : _a[1]) != null ? _b : "").length;
-          if (lineIndent > groupIndent) {
-            const lastBlock = (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) || (completed.length > 0 ? completed[completed.length - 1] : null);
-            if (lastBlock)
-              lastBlock.push(docLines[i]);
-            else
-              output.push(docLines[i]);
-            i++;
-            continue;
-          }
-          break;
-        }
-        if (p.indent.length < groupIndent) {
-          break;
-        }
-        if (p.indent.length > groupIndent) {
-          const lastBlock = (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) || (completed.length > 0 ? completed[completed.length - 1] : null);
-          if (lastBlock)
-            lastBlock.push(docLines[i]);
-          else
-            incomplete.push([docLines[i]]);
-          i++;
-          continue;
-        }
-        const block = [docLines[i]];
-        const isComp = isCompleted(p.status, this.settings.excludedChars);
-        i++;
-        while (i < docLines.length) {
-          if (docLines[i].trim() === "")
-            break;
-          const subIndent = ((_d = (_c = docLines[i].match(/^(\s*)/)) == null ? void 0 : _c[1]) != null ? _d : "").length;
-          if (subIndent <= groupIndent)
-            break;
-          block.push(docLines[i]);
-          i++;
-        }
-        if (isComp) {
-          completed.push(block);
-        } else {
-          incomplete.push(block);
-        }
-      }
-      const emit = (blocks) => {
-        for (const block of blocks) {
-          output.push(block[0]);
-          if (block.length > 1) {
-            const subtaskLines = block.slice(1);
-            const partitioned = this.partitionAllGroups(subtaskLines);
-            output.push(...partitioned);
-          }
-        }
-      };
-      emit(incomplete);
-      emit(completed);
-    }
-    return output;
-  }
   collectToEnd(view) {
-    var _a, _b;
     const doc = view.state.doc;
-    const docLines = [];
-    for (let i = 1; i <= doc.lines; i++) {
-      docLines.push(doc.line(i).text);
-    }
-    const collected = [];
-    const remaining = [];
-    for (let i = 0; i < docLines.length; i++) {
-      const parsed = parseCheckbox(docLines[i]);
-      if (parsed && isCompleted(parsed.status, this.settings.excludedChars)) {
-        collected.push(docLines[i]);
-        if (this.settings.moveWithSubtasks) {
-          const indent = parsed.indent;
-          const baseLevel = indent.length;
-          let j = i + 1;
-          while (j < docLines.length) {
-            const lineIndent = (_b = (_a = docLines[j].match(/^(\s*)/)) == null ? void 0 : _a[1]) != null ? _b : "";
-            if (lineIndent.length <= baseLevel && docLines[j].trim() !== "")
-              break;
-            if (docLines[j].trim() === "")
-              break;
-            collected.push(docLines[j]);
-            j++;
-          }
-          i = j - 1;
-        }
-      } else {
-        remaining.push(docLines[i]);
-      }
-    }
-    if (collected.length === 0)
+    const lines = this.getDocLines(view);
+    const result = collectCompleted(lines, this.settings);
+    const newText = result.join("\n");
+    if (newText === doc.toString())
       return;
-    while (remaining.length > 0 && remaining[remaining.length - 1].trim() === "") {
-      remaining.pop();
-    }
-    const finalLines = [...remaining, "", "## Completed", "", ...collected];
-    const newText = finalLines.join("\n");
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
       annotations: [reorderAnnotation.of(true)]

@@ -1,4 +1,12 @@
-import { computeReorder, ReorderSettings } from "./reorder";
+import {
+  computeReorder,
+  ReorderSettings,
+  partitionGroups,
+  collectCompleted,
+  isInsideFence,
+  getIndentLevel,
+  isGroupBoundary,
+} from "./reorder";
 
 const DEFAULT_TEST_SETTINGS: ReorderSettings = {
   moveWithSubtasks: true,
@@ -392,5 +400,321 @@ describe("computeReorder - code fence immunity", () => {
     ];
     const result = computeReorder(lines, 1, DEFAULT_TEST_SETTINGS);
     expect(result).toBeNull();
+  });
+});
+
+describe("getIndentLevel", () => {
+  it("empty string returns 0", () => {
+    expect(getIndentLevel("")).toBe(0);
+  });
+
+  it("two spaces returns 2", () => {
+    expect(getIndentLevel("  ")).toBe(2);
+  });
+
+  it("one tab returns 4", () => {
+    expect(getIndentLevel("\t")).toBe(4);
+  });
+
+  it("mixed tab and space returns sum", () => {
+    expect(getIndentLevel("\t ")).toBe(5);
+  });
+
+  it("four spaces returns 4", () => {
+    expect(getIndentLevel("    ")).toBe(4);
+  });
+});
+
+describe("isGroupBoundary", () => {
+  it("blank line is boundary", () => {
+    expect(isGroupBoundary("")).toBe(true);
+  });
+
+  it("whitespace-only line is boundary", () => {
+    expect(isGroupBoundary("   ")).toBe(true);
+  });
+
+  it("h1 heading is boundary", () => {
+    expect(isGroupBoundary("# Title")).toBe(true);
+  });
+
+  it("h3 heading is boundary", () => {
+    expect(isGroupBoundary("### Section")).toBe(true);
+  });
+
+  it("code fence is boundary", () => {
+    expect(isGroupBoundary("```")).toBe(true);
+  });
+
+  it("tilde fence is boundary", () => {
+    expect(isGroupBoundary("~~~")).toBe(true);
+  });
+
+  it("blockquote is boundary", () => {
+    expect(isGroupBoundary("> quote")).toBe(true);
+  });
+
+  it("normal text is not boundary", () => {
+    expect(isGroupBoundary("some text")).toBe(false);
+  });
+
+  it("checkbox line is not boundary", () => {
+    expect(isGroupBoundary("- [ ] task")).toBe(false);
+  });
+});
+
+describe("isInsideFence", () => {
+  it("line before any fence returns false", () => {
+    const lines = ["normal text", "```", "code", "```"];
+    expect(isInsideFence(lines, 0)).toBe(false);
+  });
+
+  it("line inside fence returns true", () => {
+    const lines = ["```", "- [x] inside fence", "```"];
+    expect(isInsideFence(lines, 1)).toBe(true);
+  });
+
+  it("line after closed fence returns false", () => {
+    const lines = ["```", "code", "```", "after fence"];
+    expect(isInsideFence(lines, 3)).toBe(false);
+  });
+
+  it("tilde fence works the same", () => {
+    const lines = ["~~~", "inside", "~~~"];
+    expect(isInsideFence(lines, 1)).toBe(true);
+  });
+
+  it("multiple fences track toggle state", () => {
+    const lines = ["```", "a", "```", "between", "```", "b", "```"];
+    expect(isInsideFence(lines, 1)).toBe(true);
+    expect(isInsideFence(lines, 3)).toBe(false);
+    expect(isInsideFence(lines, 5)).toBe(true);
+  });
+});
+
+describe("partitionGroups", () => {
+  it("moves completed task to bottom of flat group", () => {
+    const lines = [
+      "- [x] done",
+      "- [ ] pending one",
+      "- [ ] pending two",
+    ];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] pending one",
+      "- [ ] pending two",
+      "- [x] done",
+    ]);
+  });
+
+  it("handles multiple groups separated by blank line", () => {
+    const lines = [
+      "- [x] done A",
+      "- [ ] pending A",
+      "",
+      "- [x] done B",
+      "- [ ] pending B",
+    ];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] pending A",
+      "- [x] done A",
+      "",
+      "- [ ] pending B",
+      "- [x] done B",
+    ]);
+  });
+
+  it("handles nested subtasks following their parent", () => {
+    const lines = [
+      "- [x] done parent",
+      "  - [ ] child one",
+      "  - [ ] child two",
+      "- [ ] pending parent",
+    ];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] pending parent",
+      "- [x] done parent",
+      "  - [ ] child one",
+      "  - [ ] child two",
+    ]);
+  });
+
+  it("recursively partitions subtask groups", () => {
+    const lines = [
+      "- [ ] parent",
+      "  - [x] sub done",
+      "  - [ ] sub pending",
+    ];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] parent",
+      "  - [ ] sub pending",
+      "  - [x] sub done",
+    ]);
+  });
+
+  it("returns non-checkbox lines unchanged", () => {
+    const lines = ["plain text", "more text"];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "plain text",
+      "more text",
+    ]);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(partitionGroups([], DEFAULT_TEST_SETTINGS)).toEqual([]);
+  });
+
+  it("handles heading-separated groups independently", () => {
+    const lines = [
+      "## Section A",
+      "- [x] done",
+      "- [ ] pending",
+      "## Section B",
+      "- [x] also done",
+      "- [ ] also pending",
+    ];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "## Section A",
+      "- [ ] pending",
+      "- [x] done",
+      "## Section B",
+      "- [ ] also pending",
+      "- [x] also done",
+    ]);
+  });
+
+  it("preserves order when all completed", () => {
+    const lines = ["- [x] first", "- [x] second", "- [x] third"];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [x] first",
+      "- [x] second",
+      "- [x] third",
+    ]);
+  });
+
+  it("preserves order when all incomplete", () => {
+    const lines = ["- [ ] first", "- [ ] second", "- [ ] third"];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] first",
+      "- [ ] second",
+      "- [ ] third",
+    ]);
+  });
+
+  it("respects excluded characters", () => {
+    const lines = [
+      "- [?] question task",
+      "- [ ] pending",
+      "- [x] done",
+    ];
+    expect(partitionGroups(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [?] question task",
+      "- [ ] pending",
+      "- [x] done",
+    ]);
+  });
+});
+
+describe("collectCompleted", () => {
+  it("moves completed tasks under a Completed heading", () => {
+    const lines = [
+      "- [x] done",
+      "- [ ] pending",
+    ];
+    expect(collectCompleted(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] pending",
+      "",
+      "## Completed",
+      "",
+      "- [x] done",
+    ]);
+  });
+
+  it("moves subtasks with parent when moveWithSubtasks is true", () => {
+    const lines = [
+      "- [x] done parent",
+      "  - [ ] child",
+      "- [ ] pending",
+    ];
+    expect(collectCompleted(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] pending",
+      "",
+      "## Completed",
+      "",
+      "- [x] done parent",
+      "  - [ ] child",
+    ]);
+  });
+
+  it("moves only parent line when moveWithSubtasks is false", () => {
+    const lines = [
+      "- [x] done parent",
+      "  - [ ] child",
+      "- [ ] pending",
+    ];
+    const settings: ReorderSettings = {
+      ...DEFAULT_TEST_SETTINGS,
+      moveWithSubtasks: false,
+    };
+    expect(collectCompleted(lines, settings)).toEqual([
+      "  - [ ] child",
+      "- [ ] pending",
+      "",
+      "## Completed",
+      "",
+      "- [x] done parent",
+    ]);
+  });
+
+  it("returns input unchanged when no completed tasks", () => {
+    const lines = ["- [ ] one", "- [ ] two"];
+    expect(collectCompleted(lines, DEFAULT_TEST_SETTINGS)).toEqual(lines);
+  });
+
+  it("trims trailing blank lines before appending section", () => {
+    const lines = [
+      "- [ ] pending",
+      "- [x] done",
+      "",
+      "",
+    ];
+    expect(collectCompleted(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] pending",
+      "",
+      "## Completed",
+      "",
+      "- [x] done",
+    ]);
+  });
+
+  it("respects excluded characters", () => {
+    const lines = [
+      "- [?] question",
+      "- [x] done",
+      "- [ ] pending",
+    ];
+    expect(collectCompleted(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [?] question",
+      "- [ ] pending",
+      "",
+      "## Completed",
+      "",
+      "- [x] done",
+    ]);
+  });
+
+  it("collects multiple completed tasks in order", () => {
+    const lines = [
+      "- [x] first done",
+      "- [ ] pending",
+      "- [x] second done",
+    ];
+    expect(collectCompleted(lines, DEFAULT_TEST_SETTINGS)).toEqual([
+      "- [ ] pending",
+      "",
+      "## Completed",
+      "",
+      "- [x] first done",
+      "- [x] second done",
+    ]);
   });
 });

@@ -6,7 +6,7 @@ import {
   DEFAULT_SETTINGS,
   MoveCompletedSettingTab,
 } from "./settings";
-import { computeReorder, parseCheckbox, isCompleted } from "./reorder";
+import { computeReorder, parseCheckbox, isCompleted, partitionGroups, collectCompleted } from "./reorder";
 
 const reorderAnnotation = Annotation.define<boolean>();
 const highlightEffect = StateEffect.define<number>();
@@ -31,8 +31,6 @@ const highlightField = StateField.define<DecorationSet>({
   },
   provide: (f) => EditorView.decorations.from(f),
 });
-
-const CHECKBOX_RE = /^(\s*)([-*+])\s+\[(.)\]\s/;
 
 export default class MoveCompletedPlugin extends Plugin {
   settings: MoveCompletedSettings = DEFAULT_SETTINGS;
@@ -83,18 +81,15 @@ export default class MoveCompletedPlugin extends Plugin {
           const oldLine = update.startState.doc.lineAt(fromA);
           const newLine = update.state.doc.lineAt(fromB);
 
-          const oldMatch = oldLine.text.match(CHECKBOX_RE);
-          const newMatch = newLine.text.match(CHECKBOX_RE);
+          const oldParsed = parseCheckbox(oldLine.text);
+          const newParsed = parseCheckbox(newLine.text);
 
-          if (!oldMatch || !newMatch) return;
-
-          const oldStatus = oldMatch[3];
-          const newStatus = newMatch[3];
+          if (!oldParsed || !newParsed) return;
 
           if (
-            oldStatus === " " &&
-            newStatus !== " " &&
-            !plugin.settings.excludedChars.includes(newStatus)
+            oldParsed.status === " " &&
+            newParsed.status !== " " &&
+            !plugin.settings.excludedChars.includes(newParsed.status)
           ) {
             const lineIndex = newLine.number - 1;
             const view = update.view;
@@ -105,14 +100,20 @@ export default class MoveCompletedPlugin extends Plugin {
     });
   }
 
+  private getDocLines(view: EditorView): string[] {
+    const doc = view.state.doc;
+    const lines: string[] = [];
+    for (let i = 1; i <= doc.lines; i++) {
+      lines.push(doc.line(i).text);
+    }
+    return lines;
+  }
+
   private dispatchReorder(view: EditorView, lineIndex: number) {
     if (!this.settings.enabled) return;
 
     const doc = view.state.doc;
-    const docLines: string[] = [];
-    for (let i = 1; i <= doc.lines; i++) {
-      docLines.push(doc.line(i).text);
-    }
+    const docLines = this.getDocLines(view);
 
     const currentLine = docLines[lineIndex];
     if (!currentLine) return;
@@ -167,12 +168,8 @@ export default class MoveCompletedPlugin extends Plugin {
 
   private bulkMoveScoped(view: EditorView) {
     const doc = view.state.doc;
-    const docLines: string[] = [];
-    for (let i = 1; i <= doc.lines; i++) {
-      docLines.push(doc.line(i).text);
-    }
-
-    const result = this.partitionAllGroups(docLines);
+    const lines = this.getDocLines(view);
+    const result = partitionGroups(lines, this.settings);
     const newText = result.join("\n");
     if (newText === doc.toString()) return;
 
@@ -182,133 +179,12 @@ export default class MoveCompletedPlugin extends Plugin {
     });
   }
 
-  private partitionAllGroups(docLines: string[]): string[] {
-    const output: string[] = [];
-    let i = 0;
-
-    while (i < docLines.length) {
-      const parsed = parseCheckbox(docLines[i]);
-      if (!parsed) {
-        output.push(docLines[i]);
-        i++;
-        continue;
-      }
-
-      const groupIndent = parsed.indent.length;
-      const incomplete: string[][] = [];
-      const completed: string[][] = [];
-
-      while (i < docLines.length) {
-        const p = parseCheckbox(docLines[i]);
-
-        if (!p) {
-          const lineIndent = (docLines[i].match(/^(\s*)/)?.[1] ?? "").length;
-          if (lineIndent > groupIndent) {
-            const lastBlock =
-              (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) ||
-              (completed.length > 0 ? completed[completed.length - 1] : null);
-            if (lastBlock) lastBlock.push(docLines[i]);
-            else output.push(docLines[i]);
-            i++;
-            continue;
-          }
-          break;
-        }
-
-        if (p.indent.length < groupIndent) {
-          break;
-        }
-
-        if (p.indent.length > groupIndent) {
-          const lastBlock =
-            (incomplete.length > 0 ? incomplete[incomplete.length - 1] : null) ||
-            (completed.length > 0 ? completed[completed.length - 1] : null);
-          if (lastBlock) lastBlock.push(docLines[i]);
-          else incomplete.push([docLines[i]]);
-          i++;
-          continue;
-        }
-
-        // Same indent level: this is a sibling in the group
-        const block = [docLines[i]];
-        const isComp = isCompleted(p.status, this.settings.excludedChars);
-        i++;
-
-        // Collect all deeper lines as subtasks of this item
-        while (i < docLines.length) {
-          if (docLines[i].trim() === "") break;
-          const subIndent = (docLines[i].match(/^(\s*)/)?.[1] ?? "").length;
-          if (subIndent <= groupIndent) break;
-          block.push(docLines[i]);
-          i++;
-        }
-
-        if (isComp) {
-          completed.push(block);
-        } else {
-          incomplete.push(block);
-        }
-      }
-
-      // For each block with subtasks, recursively partition the subtask lines
-      const emit = (blocks: string[][]) => {
-        for (const block of blocks) {
-          output.push(block[0]);
-          if (block.length > 1) {
-            const subtaskLines = block.slice(1);
-            const partitioned = this.partitionAllGroups(subtaskLines);
-            output.push(...partitioned);
-          }
-        }
-      };
-
-      emit(incomplete);
-      emit(completed);
-    }
-
-    return output;
-  }
-
   private collectToEnd(view: EditorView) {
     const doc = view.state.doc;
-    const docLines: string[] = [];
-    for (let i = 1; i <= doc.lines; i++) {
-      docLines.push(doc.line(i).text);
-    }
-
-    const collected: string[] = [];
-    const remaining: string[] = [];
-
-    for (let i = 0; i < docLines.length; i++) {
-      const parsed = parseCheckbox(docLines[i]);
-      if (parsed && isCompleted(parsed.status, this.settings.excludedChars)) {
-        collected.push(docLines[i]);
-        if (this.settings.moveWithSubtasks) {
-          const indent = parsed.indent;
-          const baseLevel = indent.length;
-          let j = i + 1;
-          while (j < docLines.length) {
-            const lineIndent = docLines[j].match(/^(\s*)/)?.[1] ?? "";
-            if (lineIndent.length <= baseLevel && docLines[j].trim() !== "") break;
-            if (docLines[j].trim() === "") break;
-            collected.push(docLines[j]);
-            j++;
-          }
-          i = j - 1;
-        }
-      } else {
-        remaining.push(docLines[i]);
-      }
-    }
-
-    if (collected.length === 0) return;
-
-    while (remaining.length > 0 && remaining[remaining.length - 1].trim() === "") {
-      remaining.pop();
-    }
-
-    const finalLines = [...remaining, "", "## Completed", "", ...collected];
-    const newText = finalLines.join("\n");
+    const lines = this.getDocLines(view);
+    const result = collectCompleted(lines, this.settings);
+    const newText = result.join("\n");
+    if (newText === doc.toString()) return;
 
     view.dispatch({
       changes: { from: 0, to: doc.length, insert: newText },
