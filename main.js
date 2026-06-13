@@ -79,7 +79,7 @@ var MoveCompletedSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName("Move delay (seconds)").setDesc(
       "Wait this many seconds before moving a completed task. Set to 0 for instant. Unchecking before the delay cancels the move."
     ).addSlider(
-      (slider) => slider.setLimits(0, 10, 1).setValue(this.plugin.settings.moveDelay).setDynamicTooltip().onChange(async (value) => {
+      (slider) => slider.setLimits(0, 10, 1).setValue(this.plugin.settings.moveDelay).onChange(async (value) => {
         this.plugin.settings.moveDelay = value;
         await this.plugin.saveSettings();
       })

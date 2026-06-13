@@ -105,7 +105,6 @@ export class MoveCompletedSettingTab extends PluginSettingTab {
         slider
           .setLimits(0, 10, 1)
           .setValue(this.plugin.settings.moveDelay)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.moveDelay = value;
             await this.plugin.saveSettings();
