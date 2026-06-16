@@ -4,7 +4,7 @@
 ![Obsidian](https://img.shields.io/badge/obsidian-1.5.0+-7c3aed?style=flat-square)
 ![License](https://img.shields.io/github/license/aaronpenne/move-completed-tasks?style=flat-square)
 
-An [Obsidian](https://obsidian.md) plugin that moves completed tasks to the bottom of the list when you check them off, like Apple Notes, Todoist, and Noteplan.
+Yet another [Obsidian](https://obsidian.md) plugin that moves completed tasks to the bottom of the list when you check them off. This one behaves like Apple Notes, Todoist, and Noteplan.
 
 ![Before and after](imgs/before_and_after.png)
 
@@ -25,9 +25,9 @@ Delay, placement, subtask handling, which checkbox characters count as "done", a
 
 ## How it works
 
-A "group" here means any unbroken run of checkboxes at the same indent level. Blank lines, headings, code fences, or non-checkbox content end a group. This matches what the plugin's settings UI calls a group.
+Check a task and it moves to the bottom of its group, subtasks and all. Subtasks stay with their parent; a nested checkbox never jumps out of its parent list.
 
-Check a task and it moves to the bottom of its group, subtasks and all. The whole operation is one undo step. Subtasks stay with their parent; a nested checkbox never jumps out of its parent list.
+A "group" here means any unbroken run of checkboxes at the same indent level. Blank lines, headings, code fences, or non-checkbox content end a group. This matches what the plugin's settings UI calls a group.
 
 ## Commands
 
