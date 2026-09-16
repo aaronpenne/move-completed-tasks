@@ -28,32 +28,7 @@ Delay, placement, subtask handling, which checkbox characters count as "done", a
 Check a task and it moves to the bottom of its group, subtasks and all. Subtasks stay with their parent; a nested checkbox never jumps out of its parent list.
 
 A "group" here means any unbroken run of checkboxes at the same indent level. Blank lines, headings, code fences, or non-checkbox content end a group. This matches what the plugin's settings UI calls a group.
-
-## Commands
-
-Open the command palette (Ctrl/Cmd+P) and search "Move completed":
-
-| Command | What it does |
-|---------|-------------|
-| Move all completed tasks down (scoped) | Goes through every group in the document and pushes completed tasks to the bottom. Handles nesting. Keeps relative order. |
-| Collect all completed tasks to end of document | Pulls every completed task out of the body and drops them under a configurable `## Completed` heading at the end of the note. |
-
-Both can be bound to hotkeys in Settings > Hotkeys.
-
-## Settings
-
-| Option | Default | What it does |
-|--------|---------|-------------|
-| Enable | On | Master toggle for auto-move on check |
-| Move with subtasks | On | Move nested items as a block with their parent |
-| Skip subtasks with open parent | Off | Don't move a completed subtask if its parent task is still open |
-| Placement | Above completed | Where newly completed tasks land: above other completed items, or absolute bottom of the group |
-| Excluded characters | `?!*"lbiSIpcfkwud` | Checkbox characters that count as statuses, not completions (Minimal theme decorators by default) |
-| Completed heading | Completed | Heading text used when collecting completed tasks to the end of the document |
-| Section-aware collection | Off | When collecting, group completed tasks under sub-headings that mirror the original document structure |
-| Highlight moved task | On | Brief visual flash at the task's new position |
-| Move delay | 0s | Seconds to wait before moving (0 = instant). Uncheck before the delay fires to cancel. |
-
+ 
 ## Per-note opt-out
 
 Add `move-completed: false` to a note's frontmatter to disable all auto-move and bulk commands for that note:
