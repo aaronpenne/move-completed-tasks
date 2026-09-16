@@ -13,8 +13,6 @@ It does two things:
 1. When you check a task, it drops to the bottom of its list automatically. A highlight flashes so you can see where it went. Ctrl+Z to undo.
 2. Two commands let you sort or collect completed tasks across the whole document, if you have a page that's already messy. Both are bindable to hotkeys.
 
-Delay, placement, subtask handling, which checkbox characters count as "done", and more are all configurable.
-
 ## Install
 
 **Community plugins:** Settings > Community plugins > Browse, search "Move Completed Tasks", Install, Enable. Or [install directly](https://obsidian.md/plugins?id=move-completed-tasks).
